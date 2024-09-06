@@ -10,7 +10,6 @@ locations = {
     'Tuscon': {'latitude': 32.43, 'longitude': -111.1, 'name': 'Tuscon'}
 }
 
-# Choose a city here (Cork, Waterford, or Dublin)
 city_name = 'San Antonio'  # Change this to 'Waterford' or 'Dublin' as needed
 
 # Get the location information for the selected city
@@ -54,11 +53,6 @@ daily_energy_sum = 0
 hour_counter = 0
 daily_output = []
 
-# Ireland has a different solar profile, we may not want to trim as much data.
-# However, we'll still exclude some start and end hours if needed.
-
-# Looping over hourly data, trimming first 7 and last 17 hours
-# This can be adjusted for Ireland based on actual solar profiles (optional trimming)
 for hourly_output in ac[7:-17]:  
     if hour_counter < 24:
         daily_energy_sum += hourly_output
@@ -77,7 +71,7 @@ daily_output.sort()
 
 # Define energy usage and other requirements
 cutoff_day = 50  # This could be adjusted based on seasonality and your use case
-daily_usage = 2400  # Adjust according to actual daily usage (in kWh)
+daily_usage = 2400  # Adjust according to actual daily usage (in MWh)
 demand_in_MW = 100  # Demand in MW
 
 # Output results for the required solar array sizes
