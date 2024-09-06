@@ -11,7 +11,7 @@ locations = {
 }
 
 # Choose a city here (Cork, Waterford, or Dublin)
-city_name = 'Waterford'  # Change this to 'Waterford' or 'Dublin' as needed
+city_name = 'San Antonio'  # Change this to 'Waterford' or 'Dublin' as needed
 
 # Get the location information for the selected city
 latitude = locations[city_name]['latitude']
