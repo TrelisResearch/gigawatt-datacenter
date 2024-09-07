@@ -89,15 +89,15 @@ def analyze_energy_systems(lat, lon, demand_gw,
     
     # Update plot styling
     plot_layout = dict(
-        font=dict(size=14),
-        title_font_size=18,
-        legend=dict(font=dict(size=12)),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=16, color='#333333'),  # Increased font size and darker color
+        title_font_size=20,  # Increased title font size
+        legend=dict(font=dict(size=14)),  # Increased legend font size
+        plot_bgcolor='rgba(240,240,240,0.5)',  # Light gray background
+        paper_bgcolor='rgba(240,240,240,0.5)',  # Light gray background
     )
     
-    # Color palette
-    colors = ['#FF9999', '#66B2FF', '#99FF99', '#FFCC99', '#FF99CC', '#99CCFF']
+    # Color palette (adjusted for better visibility)
+    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F']
 
     # Solar energy output plot
     solar_energy_fig = go.Figure()
@@ -110,7 +110,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                       name='Gas Output', 
                                       marker_color=colors[1]))
     solar_energy_fig.update_layout(
-        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Solar vs Gas',
+        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Solar + Gas',
         xaxis_title='Days (sorted by solar output)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
@@ -175,7 +175,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                      name='Gas Output', 
                                      marker_color=colors[1]))
     wind_energy_fig.update_layout(
-        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Wind vs Gas',
+        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Wind + Gas',
         xaxis_title='Days (sorted by wind output)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
@@ -325,7 +325,9 @@ def analyze_energy_systems(lat, lon, demand_gw,
     lcoe_vs_solar_fraction_fig.add_trace(go.Scatter(
         x=hybrid_results['lcoe_vs_solar_fraction_data']['solar_fractions'],
         y=hybrid_results['lcoe_vs_solar_fraction_data']['lcoe_values'],
-        mode='lines+markers'
+        mode='lines+markers',
+        line=dict(color=colors[0]),
+        marker=dict(color=colors[1])
     ))
     lcoe_vs_solar_fraction_fig.update_layout(
         title='LCOE vs Solar Fraction (of Solar + Wind)',
@@ -372,14 +374,14 @@ def update_visibility(choice):
     )
 
 with gr.Blocks() as iface:
-    gr.Markdown("# Gigawatt Data Center - Energy System Analysis")
-    gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)")
-    gr.Markdown("Design approach:")
-    gr.Markdown("- Select between wind, solar, wind + solar, or gas (combined cycle)")
-    gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.")
-    gr.Markdown("- For wind/solar/wind+solar, an open cycle gas turbine is used to balance load for a max of 50 days per year.")
-    gr.Markdown("- The solar + wind hybrid system shown is that which minimises the levelised cost of energy. Typically this resolves to a pure solar (+ gas) or pure wind (+ gas) system.")
-    gr.Markdown("- All $/kW costs are on an installed basis.")
+    gr.Markdown("# Gigawatt Data Center - Energy System Analysis", elem_classes="text-2xl")
+    gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)", elem_classes="text-xl")
+    gr.Markdown("Design approach:", elem_classes="text-xl")
+    gr.Markdown("- Select between wind, solar, wind + solar, or gas (combined cycle)", elem_classes="text-lg")
+    gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.", elem_classes="text-lg")
+    gr.Markdown("- For wind/solar/wind+solar, an open cycle gas turbine is used to balance load for a max of 50 days per year.", elem_classes="text-lg")
+    gr.Markdown("- The solar + wind hybrid system shown is that which minimises the levelised cost of energy. Typically this resolves to a pure solar (+ gas) or pure wind (+ gas) system.", elem_classes="text-lg")
+    gr.Markdown("- All $/kW costs are on an installed basis.", elem_classes="text-lg")
 
     input_type = gr.Radio(["Location", "Coordinates"], label="Input Method", value="Location")
     
