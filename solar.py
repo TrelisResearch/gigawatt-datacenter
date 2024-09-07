@@ -119,6 +119,12 @@ solar_cost_per_kw = 550  # $/kW
 battery_cost_per_kwh = 250  # $/kWh
 generator_cost_per_kw = 800  # $/kW
 
+# Natural Gas parameters (move this up)
+ng_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
+ng_price_per_mmbtu = 20  # €/MMBtu (typical European price)
+ng_price_per_kwh = ng_price_per_mmbtu / 293.07  # Convert €/MMBtu to €/kWh
+ng_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
+
 # Calculate system costs
 def calculate_system_cost(solar_capacity, battery_capacity=0, generator_capacity=0):
     solar_cost = solar_capacity * solar_cost_per_kw
@@ -135,20 +141,20 @@ supported_solar_capacity = required_solar_array_with_generators * 1000  # Conver
 generator_capacity = demand_in_MW * 1000  # Convert to kW
 supported_system_cost = calculate_system_cost(supported_solar_capacity, generator_capacity=generator_capacity)
 
+# Calculate annual generator energy production
+generator_energy = generator_input  # MWh/year
+
 # Calculate LCOE
-def calculate_lcoe(system_cost, annual_energy_output):
-    annual_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
-    return annual_cost / (annual_energy_output * 1000)  # Convert MWh to kWh
+def calculate_lcoe(system_cost, annual_energy_output, annual_generator_energy=0):
+    annual_capital_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
+    annual_generator_fuel_cost = annual_generator_energy * 1000 * (ng_price_per_kwh / ng_efficiency + ng_opex_per_kwh)
+    total_annual_cost = annual_capital_cost + annual_generator_fuel_cost
+    return total_annual_cost / (annual_energy_output * 1000)  # Convert MWh to kWh
 
 pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_demand)
-supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_demand)
+supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_demand, generator_energy)
 
 # Natural Gas Case
-ng_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
-ng_price_per_mmbtu = 20  # €/MMBtu (typical European price)
-ng_price_per_kwh = ng_price_per_mmbtu / 293.07  # Convert €/MMBtu to €/kWh
-ng_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
-
 def calculate_ng_lcoe(demand_mwh):
     fuel_cost_per_kwh = ng_price_per_kwh / ng_efficiency
     total_cost_per_kwh = fuel_cost_per_kwh + ng_opex_per_kwh
@@ -179,7 +185,7 @@ print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Daily output for the required solar array size
+# Daily output for the required solar array size
 scaled_daily_output = np.array(daily_output) * required_solar_array_with_generators
 
 # Create generator output data
