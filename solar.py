@@ -131,6 +131,10 @@ ccgt_efficiency = 0.60  # 60% efficiency for combined cycle gas turbine
 ccgt_capex_per_kw = 1200  # $/kW
 ccgt_opex_per_kwh = 0.015  # €/kWh for operation and maintenance
 
+# Add these constants after the other cost parameters
+solar_panel_efficiency = 0.2  # 20% efficiency
+solar_panel_density = 0.4  # 40% ground coverage ratio
+
 # Calculate system costs
 def calculate_system_cost(solar_capacity, battery_capacity=0, generator_capacity=0):
     solar_cost = solar_capacity * solar_cost_per_kw
@@ -200,7 +204,15 @@ supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, de
 ocgt_capex_per_kw = ocgt_capex_per_kw
 ccgt_capex_per_kw = ccgt_capex_per_kw
 
-# Print results
+# Add this function before the print statements
+def calculate_solar_area(capacity_kw):
+    area_m2 = (capacity_kw * 1000) / (solar_panel_efficiency * solar_panel_density * 1000)  # in m²
+    area_km2 = area_m2 / 1_000_000  # convert to km²
+    ireland_area_km2 = 84421
+    percentage_of_ireland = (area_km2 / ireland_area_km2) * 100
+    return area_km2, percentage_of_ireland
+
+# Modify the print statements for both solar systems
 print("\nCost Analysis:")
 print(f"20-year Treasury rate: {rate_20y:.4f}")
 print(f"WACC: {wacc:.4f}")
@@ -221,6 +233,8 @@ print(f"Total cost: ${pure_solar_cost:,.0f}")
 print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
 print(f"Capex per kW: ${pure_solar_capex_per_kw:.2f}/kW")
 print(f"Solar Capacity Factor: {pure_solar_energy_used / pure_solar_energy_generated:.2%}")
+area_km2, percentage = calculate_solar_area(pure_solar_capacity)
+print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
 print(f"\nGenerator Supported System (with 24h battery storage):")
 print(f"Total cost: ${supported_system_cost:,.0f}")
@@ -228,6 +242,8 @@ print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
 print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
 print(f"Solar Capacity Factor: {supported_solar_energy_used / supported_solar_energy_generated:.2%}")
 print(f"Fraction of energy from solar: {supported_solar_energy_used / annual_energy_used:.2%}")
+area_km2, percentage = calculate_solar_area(supported_solar_capacity)
+print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
 ##--Add some plotting--##
 import matplotlib.pyplot as plt
