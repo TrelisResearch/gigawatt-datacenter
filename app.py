@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 from solar import analyze_solar_system
 from wind import analyze_wind_energy
 from ccgt import analyze_ccgt
+from solar_wind import analyze_hybrid_system
 import config
 
 def analyze_energy_systems(city, country, demand_gw, 
@@ -129,9 +130,52 @@ def analyze_energy_systems(city, country, demand_gw,
                                            hole=.3)])
     ccgt_cost_fig.update_layout(title='Annual Cost Breakdown for CCGT')
 
+    # Hybrid system analysis
+    hybrid_results = analyze_hybrid_system(city, country, demand_kw, daily_usage, cutoff_day)
+    
+    hybrid_output_text = f"""
+    Wind + Gas System Results:
+    LCOE: ${hybrid_results['lcoe']:.4f}/kWh
+    Solar Fraction: {hybrid_results['solar_fraction']:.2%}
+    Wind Fraction: {hybrid_results['wind_fraction']:.2%}
+    Gas Fraction: {hybrid_results['gas_fraction']:.2%}
+    Solar Capacity Factor: {hybrid_results['solar_capacity_factor']:.2%}
+    Wind Capacity Factor: {hybrid_results['wind_capacity_factor']:.2%}
+    Solar Capacity: {hybrid_results['solar_capacity_gw']:.2f} GW
+    Wind Capacity: {hybrid_results['wind_capacity_gw']:.2f} GW
+    Gas Capacity: {hybrid_results['gas_capacity_gw']:.2f} GW
+    Battery Capacity: {hybrid_results['battery_capacity_gwh']:.2f} GWh
+    Capex per kW: ${hybrid_results['capex_per_kw']:.2f}/kW
+    Total Capex: ${hybrid_results['total_capex']:.2f} million
+    """
+    
+    hybrid_energy_fig = go.Figure()
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['solar_output']))), 
+                                       y=hybrid_results['energy_output_data']['solar_output'], 
+                                       name='Solar Output', 
+                                       marker_color='yellow'))
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['wind_output']))), 
+                                       y=hybrid_results['energy_output_data']['wind_output'], 
+                                       name='Wind Output', 
+                                       marker_color='skyblue'))
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['generator_output']))), 
+                                       y=hybrid_results['energy_output_data']['generator_output'], 
+                                       name='Generator Output', 
+                                       marker_color='gray'))
+    hybrid_energy_fig.update_layout(title=f'Daily Energy Output in {city}: Solar, Wind, and Gas',
+                                    xaxis_title='Days (sorted by combined output)',
+                                    yaxis_title='Energy Output (kWh)',
+                                    barmode='stack')
+
+    hybrid_capex_fig = go.Figure(data=[go.Pie(labels=hybrid_results['capex_breakdown_data']['components'], 
+                                              values=hybrid_results['capex_breakdown_data']['values'], 
+                                              hole=.3)])
+    hybrid_capex_fig.update_layout(title=f'Capex Breakdown for {hybrid_results["system_type"]} System in {city} ($ million)')
+
     return (solar_output_text, solar_energy_fig, solar_capex_fig,
             wind_output_text, wind_energy_fig, wind_capex_fig,
-            ccgt_output_text, ccgt_cost_fig)
+            ccgt_output_text, ccgt_cost_fig,
+            hybrid_output_text, hybrid_energy_fig, hybrid_capex_fig)
 
 with gr.Blocks() as iface:
     gr.Markdown("# Solar/Wind + Gas Energy System Analysis")
@@ -155,6 +199,11 @@ with gr.Blocks() as iface:
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
+        with gr.TabItem("Hybrid System Analysis Results"):
+            hybrid_results = gr.Textbox(label="Results")
+            hybrid_energy_output = gr.Plot(label="Energy Output")
+            hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
+
         with gr.TabItem("CCGT Analysis Results"):
             ccgt_results = gr.Textbox(label="Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
@@ -208,6 +257,25 @@ with gr.Blocks() as iface:
             solar_results, solar_energy_output, solar_capex_breakdown,
             wind_results, wind_energy_output, wind_capex_breakdown,
             ccgt_results, ccgt_cost_breakdown
+        ]
+    )
+    submit_button.click(
+        fn=analyze_energy_systems,
+        inputs=[
+            city, country, demand_gw,
+            solar_cost, wind_cost, battery_cost,
+            solar_efficiency, solar_density,
+            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
+            ccgt_efficiency, ccgt_capex, ccgt_opex,
+            project_lifetime, solar_battery_hours, wind_battery_hours,
+            cutoff_day, hybrid_threshold,
+            equity_premium, debt_premium, debt_ratio, tax_rate
+        ],
+        outputs=[
+            solar_results, solar_energy_output, solar_capex_breakdown,
+            wind_results, wind_energy_output, wind_capex_breakdown,
+            ccgt_results, ccgt_cost_breakdown,
+            hybrid_results, hybrid_energy_output, hybrid_capex_breakdown
         ]
     )
 
