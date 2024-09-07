@@ -410,27 +410,27 @@ with gr.Blocks() as iface:
     submit_button = gr.Button("Analyse")
 
     with gr.Tabs() as tabs:
-        with gr.TabItem("Solar Analysis Results", id="solar_tab"):
+        with gr.TabItem("Solar Analysis Results", id=0):
             solar_results = gr.Dataframe(label="Key Results")
             solar_energy_output = gr.Plot(label="Energy Output")
             solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.TabItem("Wind Analysis Results", id="wind_tab"):
+        with gr.TabItem("Wind Analysis Results", id=1):
             wind_results = gr.Dataframe(label="Key Results")
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.TabItem("Hybrid System Analysis Results", id="hybrid_tab"):
+        with gr.TabItem("Hybrid System Analysis Results", id=2):
             hybrid_results = gr.Dataframe(label="Key Results")
             hybrid_energy_output = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
             lcoe_vs_solar_fraction_plot = gr.Plot(label="LCOE vs Solar Fraction")
 
-        with gr.TabItem("CCGT Analysis Results", id="ccgt_tab"):
+        with gr.TabItem("CCGT Analysis Results", id=3):
             ccgt_results = gr.Dataframe(label="Key Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
 
-        with gr.TabItem("Advanced Settings", id="advanced_tab"):
+        with gr.TabItem("Advanced Settings", id=4):
             with gr.Column():
                 gr.Markdown("### Battery Parameters")
                 battery_cost = gr.Slider(minimum=100, maximum=500, value=config.BATTERY_COST_PER_KWH, label="Battery Cost ($/kWh)", info="Cost per kWh of battery storage")
@@ -489,7 +489,8 @@ with gr.Blocks() as iface:
             wind_results, wind_energy_output, wind_capex_breakdown,
             ccgt_results, ccgt_cost_breakdown,
             hybrid_results, hybrid_energy_output, hybrid_capex_breakdown,
-            lcoe_vs_solar_fraction_plot
+            lcoe_vs_solar_fraction_plot,
+            gr.Tabs(selected=0)  # Select the first tab (Solar Analysis)
         ]
     )
 
