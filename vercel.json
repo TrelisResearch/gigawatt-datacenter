@@ -1,14 +1,20 @@
 {
     "builds": [
       {
-        "src": "app.py",
+        "src": "app/app.py",
         "use": "@vercel/python"
       }
     ],
     "routes": [
       {
         "src": "/(.*)",
-        "dest": "app.py"
+        "dest": "app/app.py"
       }
-    ]
+    ],
+    "functions": {
+      "app/app.py": {
+        "includeFiles": ["app/**"],
+        "excludeFiles": ["**/*.test.py", "**/__pycache__/**"]
+      }
+    }
   }
