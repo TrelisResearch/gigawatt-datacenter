@@ -85,7 +85,10 @@ def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.
     # Calculate costs
     solar_capacity = required_capacity * gamma
     wind_capacity = required_capacity * (1 - gamma)
-    battery_capacity = demand_in_kw * 24  # 24 hours of storage
+    
+    # Interpolate battery storage hours based on gamma
+    battery_hours = 12 + (24 - 12) * gamma
+    battery_capacity = demand_in_kw * battery_hours
 
     system_cost = (
         solar_capacity * SOLAR_COST_PER_KW +
@@ -106,26 +109,8 @@ def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.
     solar_capacity_factor = solar_energy_output / (solar_capacity * 24 * 365)
     wind_capacity_factor = wind_energy_output / (wind_capacity * 24 * 365)
 
-    # Print results
-    print(f"\nWind-Solar Hybrid System Analysis for {city}:")
-    print(f"Gamma (solar fraction): {gamma:.2f}")
-    print(f"Total Required Capacity: {required_capacity:.2f} kW")
-    print(f"Solar Capacity: {solar_capacity:.2f} kW")
-    print(f"Wind Capacity: {wind_capacity:.2f} kW")
-    print(f"Battery Capacity: {battery_capacity:.2f} kWh")
-    print(f"Generator Capacity: {demand_in_kw:.2f} kW")
-    print(f"Solar Capacity Factor: {solar_capacity_factor:.2%}")
-    print(f"Wind Capacity Factor: {wind_capacity_factor:.2%}")
-    print(f"Fraction handled by generator: {generator_fraction:.2%}")
-    print(f"WACC: {wacc:.2%}")
-    print(f"LCOE: ${lcoe:.4f}/kWh")
-    print(f"CAPEX per kW: ${capex_per_kw:.2f}/kW")
-
-    # Plot energy output
-    plot_energy_output(solar_daily, wind_daily, required_capacity, demand_in_kw, cutoff_day, city, gamma)
-    
-    # Plot capex breakdown
-    plot_capex_breakdown(solar_capacity, wind_capacity, battery_capacity, demand_in_kw, city)
+    # Return the LCOE and other relevant data
+    return lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours
 
 def plot_energy_output(solar_daily, wind_daily, required_capacity, demand_in_kw, cutoff_day, city, gamma):
     solar_output = solar_daily.fillna(0) * required_capacity * gamma
@@ -158,6 +143,7 @@ def plot_energy_output(solar_daily, wind_daily, required_capacity, demand_in_kw,
     ax.legend()
     ax.grid(True, linestyle='--', alpha=0.7)
     ax.set_xlim(0, num_days - 1)  # Set x-axis limits explicitly
+    ax.set_ylim(bottom=0)  # Ensure y-axis starts at 0
     plt.tight_layout()
     plt.show()
 
@@ -185,6 +171,26 @@ if __name__ == "__main__":
     country = "Ireland"
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
-    gamma = 0.5  # Equal split between wind and solar
     
-    analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma)
+    gamma_values = np.linspace(0, 1, 10)  # Changed to 5 values
+    results = []
+
+    for gamma in gamma_values:
+        result = analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma)
+        results.append(result)
+
+    # Find the result with the lowest LCOE
+    best_result = min(results, key=lambda x: x[0])
+    
+    print(f"\nBest result:")
+    print(f"Gamma: {best_result[1]:.4f}")
+    print(f"LCOE: ${best_result[0]:.4f}/kWh")
+
+    # Unpack the best result
+    lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours = best_result
+
+    print(f"Battery storage hours: {battery_hours:.2f}")
+
+    # Plot the energy output and capex breakdown for the best result
+    plot_energy_output(solar_daily, wind_daily, required_capacity, demand_in_kw, cutoff_day, city, gamma)
+    plot_capex_breakdown(solar_capacity, wind_capacity, battery_capacity, demand_in_kw, city)
