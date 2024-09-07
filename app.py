@@ -203,24 +203,28 @@ def analyze_energy_systems(lat, lon, demand_gw,
             hybrid_output_text, hybrid_energy_fig, hybrid_capex_fig)
 
 def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *args):
-    if input_type == "Location":
-        coordinates = get_coordinates(location)
-        if coordinates:
-            lat, lon = coordinates
-            print(f"Coordinates found for location: {lat}, {lon}")
+    try:
+        if input_type == "Location":
+            coordinates = get_coordinates(location)
+            if coordinates:
+                lat, lon = coordinates
+                print(f"Coordinates found for location: {lat}, {lon}")
+            else:
+                return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None
+        elif input_type == "Coordinates":
+            coordinates = validate_coordinates(lat, lon)
+            if coordinates:
+                lat, lon = coordinates
+                print(f"Using provided coordinates: {lat}, {lon}")
+            else:
+                return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None
         else:
-            return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None
-    elif input_type == "Coordinates":
-        coordinates = validate_coordinates(lat, lon)
-        if coordinates:
-            lat, lon = coordinates
-            print(f"Using provided coordinates: {lat}, {lon}")
-        else:
-            return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None
-    else:
-        return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None
-    
-    return analyze_energy_systems(lat, lon, demand_gw, *args)
+            return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None
+        
+        return analyze_energy_systems(lat, lon, demand_gw, *args)
+    except Exception as e:
+        error_message = f"An error occurred: {str(e)}"
+        return error_message, None, None, None, None, None, None, None, None, None, None
 
 def update_visibility(choice):
     return (
