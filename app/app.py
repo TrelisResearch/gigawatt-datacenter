@@ -118,31 +118,13 @@ def analyze_energy_systems(lat, lon, demand_gw,
     )
 
     # Solar capex breakdown plot
-    solar_capex_fig = go.Figure(go.Bar(
-        y=['Total'],
-        x=[solar_results['capex_per_kw']],
-        orientation='h',
-        marker_color=colors[0],
-        name='Solar'
-    ))
-    solar_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[solar_results['capex_breakdown_data']['values'][1]],  # Assuming battery is the second item
-        orientation='h',
-        marker_color=colors[1],
-        name='Battery'
-    ))
-    solar_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[solar_results['capex_breakdown_data']['values'][2]],  # Assuming gas is the third item
-        orientation='h',
-        marker_color=colors[2],
-        name='Gas'
-    ))
+    solar_capex_fig = go.Figure(data=[go.Pie(
+        labels=solar_results['capex_breakdown_data']['components'],
+        values=solar_results['capex_breakdown_data']['values'],
+        marker_colors=colors[:3]
+    )])
     solar_capex_fig.update_layout(
-        title=f'Capex Breakdown for Solar + Gas System ($/kW)',
-        xaxis_title='Capex ($/kW)',
-        barmode='stack',
+        title=f'Capex Breakdown for Solar + Gas System',
         **plot_layout
     )
 
@@ -183,31 +165,13 @@ def analyze_energy_systems(lat, lon, demand_gw,
     )
 
     # Wind capex breakdown plot
-    wind_capex_fig = go.Figure(go.Bar(
-        y=['Total'],
-        x=[wind_results['capex_breakdown_data']['values'][0]],
-        orientation='h',
-        marker_color=colors[2],
-        name='Wind'
-    ))
-    wind_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[wind_results['capex_breakdown_data']['values'][1]],  # Assuming battery is the second item
-        orientation='h',
-        marker_color=colors[1],
-        name='Battery'
-    ))
-    wind_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[wind_results['capex_breakdown_data']['values'][2]],  # Assuming gas is the third item
-        orientation='h',
-        marker_color=colors[3],
-        name='Gas'
-    ))
+    wind_capex_fig = go.Figure(data=[go.Pie(
+        labels=wind_results['capex_breakdown_data']['components'],
+        values=wind_results['capex_breakdown_data']['values'],
+        marker_colors=colors[:3]
+    )])
     wind_capex_fig.update_layout(
-        title=f'Capex Breakdown for Wind + Gas System ($/kW)',
-        xaxis_title='Capex ($/kW)',
-        barmode='stack',
+        title=f'Capex Breakdown for Wind + Gas System',
         **plot_layout
     )
 
@@ -285,38 +249,13 @@ def analyze_energy_systems(lat, lon, demand_gw,
     )
 
     # Hybrid capex breakdown plot
-    hybrid_capex_fig = go.Figure(go.Bar(
-        y=['Total'],
-        x=[hybrid_results['capex_breakdown_data']['values'][0]],
-        orientation='h',
-        marker_color=colors[0],
-        name='Solar'
-    ))
-    hybrid_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[hybrid_results['capex_breakdown_data']['values'][1]],
-        orientation='h',
-        marker_color=colors[2],
-        name='Wind'
-    ))
-    hybrid_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[hybrid_results['capex_breakdown_data']['values'][2]],
-        orientation='h',
-        marker_color=colors[1],
-        name='Battery'
-    ))
-    hybrid_capex_fig.add_trace(go.Bar(
-        y=['Total'],
-        x=[hybrid_results['capex_breakdown_data']['values'][3]],
-        orientation='h',
-        marker_color=colors[3],
-        name='Gas'
-    ))
+    hybrid_capex_fig = go.Figure(data=[go.Pie(
+        labels=hybrid_results['capex_breakdown_data']['components'],
+        values=hybrid_results['capex_breakdown_data']['values'],
+        marker_colors=colors[:4]
+    )])
     hybrid_capex_fig.update_layout(
-        title=f'Capex Breakdown for {hybrid_results["system_type"]} System ($/kW)',
-        xaxis_title='Capex ($/kW)',
-        barmode='stack',
+        title=f'Capex Breakdown for {hybrid_results["system_type"]} System',
         **plot_layout
     )
 
