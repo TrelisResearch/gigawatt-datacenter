@@ -492,6 +492,6 @@ with gr.Blocks() as iface:
         ]
     )
 
-    iface.load(lambda: gr.Tabs.update(selected="solar"))
+    iface.load(lambda: gr.Tabs(selected="solar"))
 
 iface.launch()
