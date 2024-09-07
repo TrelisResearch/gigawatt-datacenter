@@ -1,6 +1,7 @@
 import gradio as gr
 import plotly.graph_objects as go
 from solar import analyze_solar_system
+from wind import analyze_wind_energy
 import config
 
 def solar_analysis(city, country, demand_gw, 
@@ -73,9 +74,78 @@ def solar_analysis(city, country, demand_gw,
 
     return output_text, energy_fig, capex_fig
 
+def wind_analysis(city, country, demand_gw, 
+                  solar_cost, wind_cost, battery_cost, 
+                  solar_efficiency, solar_density,
+                  ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
+                  ccgt_efficiency, ccgt_capex, ccgt_opex,
+                  project_lifetime, solar_battery_hours, wind_battery_hours,
+                  cutoff_day, hybrid_threshold):
+    
+    # Update config values (same as in solar_analysis)
+    config.SOLAR_COST_PER_KW = solar_cost
+    config.WIND_COST_PER_KW = wind_cost
+    config.BATTERY_COST_PER_KWH = battery_cost
+    config.SOLAR_PANEL_EFFICIENCY = solar_efficiency
+    config.SOLAR_PANEL_DENSITY = solar_density
+    config.NG_PRICE_PER_MMBTU = ng_price
+    config.NG_PRICE_PER_KWH = ng_price / 293.07
+    config.OCGT_EFFICIENCY = ocgt_efficiency
+    config.OCGT_CAPEX_PER_KW = ocgt_capex
+    config.OCGT_OPEX_PER_KWH = ocgt_opex
+    config.CCGT_EFFICIENCY = ccgt_efficiency
+    config.CCGT_CAPEX_PER_KW = ccgt_capex
+    config.CCGT_OPEX_PER_KWH = ccgt_opex
+    config.PROJECT_LIFETIME = project_lifetime
+    config.SOLAR_BATTERY_STORAGE_HOURS = solar_battery_hours
+    config.WIND_BATTERY_STORAGE_HOURS = wind_battery_hours
+    config.CUTOFF_DAY = cutoff_day
+    config.HYBRID_LCOE_THRESHOLD = hybrid_threshold
+
+    demand_kw = demand_gw * 1e6
+    daily_usage = demand_kw * 24
+    results = analyze_wind_energy(city, country, daily_usage, demand_kw, cutoff_day)
+    
+    output_text = f"""
+    Wind + Gas System Results:
+    LCOE: ${results['lcoe']:.4f}/kWh
+    Wind Fraction: {results['wind_fraction']:.2%}
+    Gas Fraction: {results['generator_fraction']:.2%}
+    Wind Capacity Factor: {results['capacity_factor']:.2%}
+    Wind Capacity: {results['wind_capacity_gw']:.2f} GW
+    Gas Capacity: {results['generator_capacity_gw']:.2f} GW
+    Capex per kW: ${results['capex_per_kw']} $/kW
+    Total Capex: ${results['total_capex']:.2f} million
+    """
+    
+    # Create energy output plot
+    energy_data = results['energy_output_data']
+    energy_fig = go.Figure()
+    energy_fig.add_trace(go.Bar(x=list(range(len(energy_data['wind_output']))), 
+                                y=energy_data['wind_output'], 
+                                name='Wind Output', 
+                                marker_color='blue'))
+    energy_fig.add_trace(go.Bar(x=list(range(len(energy_data['generator_output']))), 
+                                y=energy_data['generator_output'], 
+                                name='Generator Output', 
+                                marker_color='gray'))
+    energy_fig.update_layout(title=f'Daily Energy Output in {city}: Wind vs Gas',
+                             xaxis_title='Days (sorted by wind output)',
+                             yaxis_title='Energy Output (kWh)',
+                             barmode='stack')
+
+    # Create capex breakdown plot
+    capex_data = results['capex_breakdown_data']
+    capex_fig = go.Figure(data=[go.Pie(labels=capex_data['components'], 
+                                       values=capex_data['values'], 
+                                       hole=.3)])
+    capex_fig.update_layout(title=f'Capex Breakdown for Wind + Gas System in {city} ($ million)')
+
+    return output_text, energy_fig, capex_fig
+
 with gr.Blocks() as iface:
-    gr.Markdown("# Solar + Gas Energy System Analysis")
-    gr.Markdown("Analyze a solar energy system with gas backup for a given location and demand.")
+    gr.Markdown("# Solar/Wind + Gas Energy System Analysis")
+    gr.Markdown("Analyze a solar or wind energy system with gas backup for a given location and demand.")
     
     with gr.Row():
         city = gr.Textbox(label="City", value="Waterford")
@@ -86,9 +156,14 @@ with gr.Blocks() as iface:
 
     with gr.Tabs():
         with gr.TabItem("Solar Analysis Results"):
-            results = gr.Textbox(label="Results")
-            energy_output = gr.Plot(label="Energy Output")
-            capex_breakdown = gr.Plot(label="Capex Breakdown")
+            solar_results = gr.Textbox(label="Results")
+            solar_energy_output = gr.Plot(label="Energy Output")
+            solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
+        
+        with gr.TabItem("Wind Analysis Results"):
+            wind_results = gr.Textbox(label="Results")
+            wind_energy_output = gr.Plot(label="Energy Output")
+            wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
         with gr.TabItem("Advanced Settings"):
             with gr.Column():
@@ -128,7 +203,21 @@ with gr.Blocks() as iface:
             project_lifetime, solar_battery_hours, wind_battery_hours,
             cutoff_day, hybrid_threshold
         ],
-        outputs=[results, energy_output, capex_breakdown]
+        outputs=[solar_results, solar_energy_output, solar_capex_breakdown]
     )
 
-iface.launch()
+    submit_button.click(
+        fn=wind_analysis,
+        inputs=[
+            city, country, demand_gw,
+            solar_cost, wind_cost, battery_cost,
+            solar_efficiency, solar_density,
+            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
+            ccgt_efficiency, ccgt_capex, ccgt_opex,
+            project_lifetime, solar_battery_hours, wind_battery_hours,
+            cutoff_day, hybrid_threshold
+        ],
+        outputs=[wind_results, wind_energy_output, wind_capex_breakdown]
+    )
+
+    iface.launch()

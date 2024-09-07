@@ -175,7 +175,6 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
     print(f"Wind Capacity Factor: {supported_wind_capacity_factor:.2%}")
     print(f"Fraction of energy from wind: {supported_wind_energy_used / annual_energy_used:.2%}")
 
-    # Instead of printing results, collect them in a dictionary
     results = {
         "lcoe": supported_system_lcoe,
         "wind_fraction": supported_wind_energy_used / annual_energy_used,
@@ -198,10 +197,6 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
         },
         "total_capex": supported_system_cost / 1e6  # Convert to millions
     }
-
-    # Remove or comment out the plotting functions
-    # plot_energy_output(sorted_daily_output, required_turbines_with_generators, daily_usage, city)
-    # plot_capex_breakdown(supported_wind_capacity, battery_capacity, generator_capacity, city)
 
     return results
 
