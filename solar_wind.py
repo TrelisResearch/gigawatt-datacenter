@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from solar import simulate_solar_output, calculate_daily_output as calculate_solar_daily_output
 from wind import fetch_open_meteo_data, WindTurbine, ModelChain
-from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
+from utils import calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
 def simulate_wind_output(weather_data):
     turbine = WindTurbine(turbine_type='E-126/7500', hub_height=135)
@@ -36,7 +36,7 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff
     solar_daily = pd.Series(solar_daily.values, index=date_range[:len(solar_daily)])
     wind_daily = wind_daily.reindex(date_range)
 
-    gamma_values = np.linspace(0, 1, 5)
+    gamma_values = np.linspace(0, 1, 10)  # Increase the number of points for a smoother curve
     results = []
 
     for gamma in gamma_values:
@@ -139,6 +139,12 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff
         ]
     }
 
+    # Instead of creating a plot, just return the data
+    lcoe_vs_solar_fraction_data = {
+        'solar_fractions': [result[1] for result in results],
+        'lcoe_values': [result[0] for result in results]
+    }
+
     return {
         "lcoe": lcoe,
         "system_type": system_type,
@@ -157,7 +163,8 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff
         "total_capex": total_capex,
         "latitude": latitude,
         "longitude": longitude,
-        "wacc": wacc
+        "wacc": wacc,
+        "lcoe_vs_solar_fraction_data": lcoe_vs_solar_fraction_data,
     }
 
 if __name__ == "__main__":

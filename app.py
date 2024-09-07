@@ -7,6 +7,7 @@ from solar_wind import analyze_hybrid_system
 import config
 from geopy.geocoders import Nominatim
 import pandas as pd
+import base64
 
 def get_coordinates(location):
     geolocator = Nominatim(user_agent="SolarScript/1.0")
@@ -244,7 +245,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
     
     # Hybrid results
     hybrid_results_df = pd.DataFrame({
-        'Metric': ['LCOE', 'Solar Fraction', 'Wind Fraction', 'Gas Fraction', 
+        'Metric': ['LCOE', 'Solar as fraction of solar + wind', 'Wind as fraction of solar + wind', 'Gas fraction of energy used', 
                    'Solar Capacity Factor', 'Wind Capacity Factor', 'Solar Capacity', 
                    'Wind Capacity', 'Gas Capacity', 'Battery Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
         'Value': [f"${hybrid_results['lcoe']:.4f}/kWh",
@@ -258,7 +259,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{hybrid_results['gas_capacity_gw']:.2f} GW",
                   f"{hybrid_results['battery_capacity_gwh']:.2f} GWh",
                   f"${int(hybrid_results['capex_per_kw'])}/kW",
-                  f"${int(hybrid_results['total_capex']):,.0f}",
+                  f"${int(hybrid_results['total_capex']):,.0f} million",
                   f"{hybrid_results['wacc']:.1%}"]
     })
     
@@ -320,10 +321,26 @@ def analyze_energy_systems(lat, lon, demand_gw,
         **plot_layout
     )
 
+    # Create the LCOE vs Solar Fraction plot using Plotly
+    lcoe_vs_solar_fraction_fig = go.Figure()
+    lcoe_vs_solar_fraction_fig.add_trace(go.Scatter(
+        x=hybrid_results['lcoe_vs_solar_fraction_data']['solar_fractions'],
+        y=hybrid_results['lcoe_vs_solar_fraction_data']['lcoe_values'],
+        mode='lines+markers'
+    ))
+    lcoe_vs_solar_fraction_fig.update_layout(
+        title='LCOE vs Solar Fraction (of Solar + Wind)',
+        xaxis_title='Solar Fraction (of Solar + Wind)',
+        yaxis_title='LCOE ($/kWh)',
+        yaxis=dict(range=[0, max(hybrid_results['lcoe_vs_solar_fraction_data']['lcoe_values']) * 1.1]),  # Start at 0, end slightly above max value
+        **plot_layout
+    )
+
     return (solar_results_df, solar_energy_fig, solar_capex_fig,
             wind_results_df, wind_energy_fig, wind_capex_fig,
             ccgt_results_df, ccgt_cost_fig,
-            hybrid_results_df, hybrid_energy_fig, hybrid_capex_fig)
+            hybrid_results_df, hybrid_energy_fig, hybrid_capex_fig,
+            lcoe_vs_solar_fraction_fig)  # Return the Plotly figure instead of an image
 
 def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *args):
     try:
@@ -333,21 +350,21 @@ def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *a
                 lat, lon = coordinates
                 print(f"Coordinates found for location: {lat}, {lon}")
             else:
-                return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None
+                return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None, None
         elif input_type == "Coordinates":
             coordinates = validate_coordinates(lat, lon)
             if coordinates:
                 lat, lon = coordinates
                 print(f"Using provided coordinates: {lat}, {lon}")
             else:
-                return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None
+                return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None, None
         else:
-            return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None
+            return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None, None
         
         return analyze_energy_systems(lat, lon, demand_gw, *args)
     except Exception as e:
         error_message = f"An error occurred: {str(e)}"
-        return error_message, None, None, None, None, None, None, None, None, None, None
+        return error_message, None, None, None, None, None, None, None, None, None, None, None
 
 def update_visibility(choice):
     return (
@@ -357,6 +374,7 @@ def update_visibility(choice):
 
 with gr.Blocks() as iface:
     gr.Markdown("# Gigawatt Data Center")
+    gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)")
     gr.Markdown("Design approach:")
     gr.Markdown("- Select between wind, solar, wind + solar, or gas (combined cycle)")
     gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.")
@@ -406,6 +424,7 @@ with gr.Blocks() as iface:
             hybrid_results = gr.Dataframe(label="Key Results")
             hybrid_energy_output = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
+            lcoe_vs_solar_fraction_plot = gr.Plot(label="LCOE vs Solar Fraction")
 
         with gr.TabItem("CCGT Analysis Results", id="ccgt_tab"):
             ccgt_results = gr.Dataframe(label="Key Results")
@@ -469,7 +488,8 @@ with gr.Blocks() as iface:
             solar_results, solar_energy_output, solar_capex_breakdown,
             wind_results, wind_energy_output, wind_capex_breakdown,
             ccgt_results, ccgt_cost_breakdown,
-            hybrid_results, hybrid_energy_output, hybrid_capex_breakdown
+            hybrid_results, hybrid_energy_output, hybrid_capex_breakdown,
+            lcoe_vs_solar_fraction_plot
         ]
     )
 
