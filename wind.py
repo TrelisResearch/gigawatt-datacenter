@@ -5,23 +5,7 @@ import matplotlib.pyplot as plt
 import requests
 import yfinance as yf
 from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
-
-# Cost parameters
-wind_cost_per_kw = 1300  # $/kW
-battery_cost_per_kwh = 250  # $/kWh
-generator_cost_per_kw = 800  # $/kW
-
-# Natural Gas parameters
-ng_price_per_mmbtu = 20  # €/MMBtu (typical European price)
-ng_price_per_kwh = ng_price_per_mmbtu / 293.07  # Convert €/MMBtu to €/kWh
-
-# Open Cycle Gas Turbine (OCGT) parameters
-ocgt_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
-ocgt_capex_per_kw = 800  # $/kW
-ocgt_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
-
-# Project lifetime
-project_lifetime = 20  # years
+from config import *
 
 def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,temperature_2m,pressure_msl"
@@ -112,9 +96,9 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
 
     # Calculate system costs
     def calculate_system_cost(wind_capacity, battery_capacity=0, generator_capacity=0):
-        wind_cost = wind_capacity * wind_cost_per_kw
-        battery_cost = battery_capacity * battery_cost_per_kwh
-        generator_cost = generator_capacity * generator_cost_per_kw
+        wind_cost = wind_capacity * WIND_COST_PER_KW
+        battery_cost = battery_capacity * BATTERY_COST_PER_KWH
+        generator_cost = generator_capacity * GENERATOR_COST_PER_KW
         return wind_cost + battery_cost + generator_cost
 
     # Pure wind case
@@ -147,16 +131,16 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
         capacity_kw = demand_in_kw
         
         capex = capacity_kw * capex_per_kw
-        annual_capex = capex * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
+        annual_capex = capex * (wacc * (1 + wacc)**PROJECT_LIFETIME) / ((1 + wacc)**PROJECT_LIFETIME - 1)
         
-        fuel_cost_per_kwh = ng_price_per_kwh / efficiency
+        fuel_cost_per_kwh = NG_PRICE_PER_KWH / efficiency
         annual_fuel_cost = demand_kwh * fuel_cost_per_kwh
         annual_opex = demand_kwh * opex_per_kwh
         
         total_annual_cost = annual_capex + annual_fuel_cost + annual_opex
         return total_annual_cost / demand_kwh
 
-    ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
+    ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, OCGT_EFFICIENCY, OCGT_CAPEX_PER_KW, OCGT_OPEX_PER_KWH)
 
     # Calculate capex per kW of rated capacity
     pure_wind_capex_per_kw = calculate_capex_per_kw(pure_wind_cost, demand_in_kw)
@@ -171,7 +155,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
 
     print(f"\nNatural Gas System (OCGT):")
     print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
-    print(f"Capex per kW: ${ocgt_capex_per_kw:.2f}/kW")
+    print(f"Capex per kW: ${OCGT_CAPEX_PER_KW:.2f}/kW")
 
     print(f"\nPure Wind System (with 24h battery storage):")
     if required_turbines_no_generators != float('inf'):
@@ -215,9 +199,9 @@ def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, city
     plt.show()
 
 def plot_capex_breakdown(wind_capacity, battery_capacity, generator_capacity, city):
-    wind_capex = wind_capacity * wind_cost_per_kw
-    battery_capex = battery_capacity * battery_cost_per_kwh
-    generator_capex = generator_capacity * generator_cost_per_kw
+    wind_capex = wind_capacity * WIND_COST_PER_KW
+    battery_capex = battery_capacity * BATTERY_COST_PER_KWH
+    generator_capex = generator_capacity * GENERATOR_COST_PER_KW
 
     capex_components = [wind_capex, battery_capex, generator_capex]
     labels = ['Wind Turbines', 'Battery Storage', 'Generator']

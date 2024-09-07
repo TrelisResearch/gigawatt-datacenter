@@ -1,3 +1,5 @@
+from config import *
+
 from pvlib import pvsystem, modelchain, location, iotools
 import pandas as pd
 import matplotlib.pyplot as plt
