@@ -71,50 +71,50 @@ print(sorted_daily_output.describe())
 
 # Define energy usage and other requirements
 cutoff_day = 50  # This could be adjusted based on seasonality and your use case
-daily_usage = 2400  # Adjust according to actual daily usage (in MWh)
-demand_in_MW = 100  # Demand in MW
+daily_usage = 24000000  # Daily usage in kWh (24 GWh)
+demand_in_kW = 1000000  # Demand in kW (1 GW)
 
 # Print diagnostic information
 print(f"\nDiagnostic Information:")
-print(f"Daily usage: {daily_usage} MWh")
-print(f"Cutoff day value: {sorted_daily_output.iloc[cutoff_day]:.2f} MWh")
-print(f"Calculation: {daily_usage} / {sorted_daily_output.iloc[cutoff_day]:.2f}")
+print(f"Daily usage: {daily_usage} kWh")
+print(f"Cutoff day value: {sorted_daily_output.iloc[cutoff_day] * 1000:.2f} kWh")
+print(f"Calculation: {daily_usage} / {sorted_daily_output.iloc[cutoff_day] * 1000:.2f}")
 
 # Calculate required wind turbines
 if sorted_daily_output.iloc[0] > 0:
-    required_turbines_no_generators = round(daily_usage / sorted_daily_output.iloc[0])
+    required_turbines_no_generators = round(daily_usage / (sorted_daily_output.iloc[0] * 1000))
 else:
     required_turbines_no_generators = float('inf')
     print("Warning: There are days with zero wind output. Infinite turbines would be required without generators.")
 
-required_turbines_with_generators = round(daily_usage / sorted_daily_output.iloc[cutoff_day])
+required_turbines_with_generators = round(daily_usage / (sorted_daily_output.iloc[cutoff_day] * 1000))
 
 # Calculate generator input and fraction
 annual_demand = 365 * daily_usage
-generator_input = (50 * demand_in_MW * 24) - sum(sorted_daily_output.iloc[:cutoff_day]) * required_turbines_with_generators
+generator_input = (50 * demand_in_kW * 24) - sum(sorted_daily_output.iloc[:cutoff_day]) * required_turbines_with_generators * 1000
 generator_fraction = generator_input / annual_demand
 
 # Calculate average capacity factor (with generators)
-total_energy_output = sum(sorted_daily_output) * required_turbines_with_generators  # Total energy in MWh
-total_capacity = turbine.nominal_power * required_turbines_with_generators / 1e6  # Total capacity in MW
+total_energy_output = sum(sorted_daily_output) * required_turbines_with_generators * 1000  # Total energy in kWh
+total_capacity = turbine.nominal_power * required_turbines_with_generators / 1e3  # Total capacity in kW
 capacity_factor = total_energy_output / (total_capacity * 24 * 365)
 
 # Print results
 print(f'\nWind Turbine Requirements for {city_name}:')
 print(f'Turbine Type: {turbine.turbine_type}')
-print(f'Rated Power: {turbine.nominal_power/1e3:.2f} MW')
+print(f'Rated Power: {turbine.nominal_power/1e3:.2f} kW')
 print(f'Average Capacity Factor (with generators): {capacity_factor:.2%}')
 if required_turbines_no_generators != float('inf'):
     print('Required Wind Turbines (no generators): ', required_turbines_no_generators)
-    print(f'Total Installed Capacity (no generators): {required_turbines_no_generators * turbine.nominal_power/1e6:.2f} GW')
+    print(f'Total Installed Capacity (no generators): {required_turbines_no_generators * turbine.nominal_power/1e3:.2f} kW')
 else:
     print('Required Wind Turbines (no generators): Infinite (due to days with no wind)')
 print('Required Wind Turbines (with generators): ', required_turbines_with_generators)
-print(f'Total Installed Capacity (with generators): {required_turbines_with_generators * turbine.nominal_power/1e6:.2f} GW')
+print(f'Total Installed Capacity (with generators): {required_turbines_with_generators * turbine.nominal_power/1e3:.2f} kW')
 print(f'Fraction handled by generators: {generator_fraction:.2%}')
 
 # Plotting
-scaled_daily_output = sorted_daily_output * required_turbines_with_generators
+scaled_daily_output = sorted_daily_output * required_turbines_with_generators * 1000
 generator_output = np.maximum(daily_usage - scaled_daily_output, 0)
 
 fig, ax = plt.subplots(figsize=(12, 6))
@@ -124,7 +124,7 @@ ax.bar(range(len(generator_output)), generator_output, bottom=scaled_daily_outpu
        label='Generator Output', color='gray')
 
 ax.set_xlabel('Days (sorted by wind output)')
-ax.set_ylabel('Energy Output (MWh)')
+ax.set_ylabel('Energy Output (kWh)')
 ax.set_title(f'Daily Energy Output in {city_name}: Wind vs Generator')
 ax.legend()
 ax.grid(True, linestyle='--', alpha=0.7)

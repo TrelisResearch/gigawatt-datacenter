@@ -1,6 +1,31 @@
 from pvlib import pvsystem, modelchain, location, iotools
 import pandas as pd
 import yfinance as yf
+import requests
+
+def get_coordinates(city, country):
+    """
+    Fetch latitude and longitude for a given city and country using the Nominatim API.
+    """
+    base_url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "city": city,
+        "country": country,
+        "format": "json",
+        "limit": 1
+    }
+    headers = {
+        "User-Agent": "SolarScript/1.0"
+    }
+
+    response = requests.get(base_url, params=params, headers=headers)
+    response.raise_for_status()
+
+    data = response.json()
+    if data:
+        return float(data[0]["lat"]), float(data[0]["lon"])
+    else:
+        return None
 
 # Cities: Cork, Waterford, Dublin (with their respective coordinates)
 locations = {
@@ -11,12 +36,24 @@ locations = {
     'Tuscon': {'latitude': 32.43, 'longitude': -111.1, 'name': 'Tuscon'}
 }
 
-city_name = 'Waterford'  # Change this to 'Waterford' or 'Dublin' as needed
+city_name = 'Boston'  # Change this to the city you want to analyze
+country_name = 'United States'  # Add the country name
 
-# Get the location information for the selected city
-latitude = locations[city_name]['latitude']
-longitude = locations[city_name]['longitude']
-city = locations[city_name]['name']
+# Try to get coordinates from the locations dictionary first
+if city_name in locations:
+    latitude = locations[city_name]['latitude']
+    longitude = locations[city_name]['longitude']
+    city = locations[city_name]['name']
+else:
+    # If not in the dictionary, fetch coordinates using the API
+    coordinates = get_coordinates(city_name, country_name)
+    if coordinates:
+        latitude, longitude = coordinates
+        city = city_name
+    else:
+        raise ValueError(f"Could not find coordinates for {city_name}, {country_name}")
+
+print(f"Coordinates for {city_name}: Latitude {latitude}, Longitude {longitude}")
 
 # Adjust solar array parameters (same as before, can be modified)
 array_kwargs_tracker = dict(
@@ -126,11 +163,6 @@ ocgt_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
 ocgt_capex_per_kw = 800  # $/kW
 ocgt_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
 
-# Combined Cycle Gas Turbine (CCGT) parameters
-ccgt_efficiency = 0.60  # 60% efficiency for combined cycle gas turbine
-ccgt_capex_per_kw = 1200  # $/kW
-ccgt_opex_per_kwh = 0.015  # €/kWh for operation and maintenance
-
 # Add these constants after the other cost parameters
 solar_panel_efficiency = 0.2  # 20% efficiency
 solar_panel_density = 0.4  # 40% ground coverage ratio
@@ -173,7 +205,7 @@ def calculate_lcoe(system_cost, annual_energy_used, annual_generator_energy=0):
 pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_energy_used)
 supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, generator_energy)
 
-# Natural Gas Case (CCGT and OCGT)
+# Natural Gas Case (OCGT)
 def calculate_ng_lcoe(demand_kwh, efficiency, capex_per_kw, opex_per_kwh):
     capacity_kw = demand_in_kw
     
@@ -188,7 +220,6 @@ def calculate_ng_lcoe(demand_kwh, efficiency, capex_per_kw, opex_per_kwh):
     return total_annual_cost / demand_kwh
 
 ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
-ccgt_lcoe = calculate_ng_lcoe(annual_energy_used, ccgt_efficiency, ccgt_capex_per_kw, ccgt_opex_per_kwh)
 
 # Calculate capex per kW of rated capacity
 def calculate_capex_per_kw(total_cost, rated_capacity_kw):
@@ -200,9 +231,8 @@ pure_solar_capex_per_kw = calculate_capex_per_kw(pure_solar_cost, demand_in_kw)
 # Generator supported case
 supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, demand_in_kw)
 
-# Natural gas cases (OCGT and CCGT)
+# Natural gas case (OCGT)
 ocgt_capex_per_kw = ocgt_capex_per_kw
-ccgt_capex_per_kw = ccgt_capex_per_kw
 
 # Add this function before the print statements
 def calculate_solar_area(capacity_kw):
@@ -223,10 +253,6 @@ usd_eur_rate = 1.1  # Assume 1 EUR = 1.1 USD
 print(f"\nNatural Gas System (OCGT):")
 print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
 print(f"Capex per kW: ${ocgt_capex_per_kw:.2f}/kW")
-
-print(f"\nNatural Gas System (CCGT):")
-print(f"LCOE: ${ccgt_lcoe * usd_eur_rate:.4f}/kWh")
-print(f"Capex per kW: ${ccgt_capex_per_kw:.2f}/kW")
 
 print(f"\nPure Solar System (with 24h battery storage):")
 print(f"Total cost: ${pure_solar_cost:,.0f}")
