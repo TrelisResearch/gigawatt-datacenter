@@ -7,13 +7,6 @@ from solar import simulate_solar_output, calculate_daily_output as calculate_sol
 from wind import fetch_open_meteo_data, WindTurbine, ModelChain
 from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
-# Constants
-SOLAR_COST_PER_KW = 550
-WIND_COST_PER_KW = 1300
-BATTERY_COST_PER_KWH = 250
-GENERATOR_COST_PER_KW = 800
-PROJECT_LIFETIME = 20
-
 def simulate_wind_output(weather_data):
     turbine = WindTurbine(turbine_type='E-126/7500', hub_height=135)
     mc = ModelChain(turbine).run_model(weather_data)
@@ -22,7 +15,7 @@ def simulate_wind_output(weather_data):
 def calculate_wind_daily_output(wind_output):
     return wind_output.resample('D').sum()  # Daily sum of kWh per kW of capacity
 
-def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.5, cutoff_day=50):
+def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.5, cutoff_day=CUTOFF_DAY):
     coordinates = get_coordinates(city, country)
     if coordinates is None:
         print(f"Could not find coordinates for {city}, {country}")
@@ -63,21 +56,70 @@ def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.
     print(f"Final number of days in solar data: {len(solar_daily)}")
     print(f"Final number of days in wind data: {len(wind_daily)}")
 
-    # Combine daily outputs
+    # Calculate combined daily output
     combined_daily = solar_daily * gamma + wind_daily * (1 - gamma)
-    print(f"Number of days in combined data: {len(combined_daily)}")
-    print(f"Number of NaN values in combined data: {combined_daily.isna().sum()}")
-    print(f"Number of zero values in combined data: {(combined_daily == 0).sum()}")
 
     # Sort the combined daily output
     sorted_daily_output = combined_daily.sort_values(ascending=True)
 
     # Calculate system requirements
-    print(f"Cutoff day value: {sorted_daily_output.iloc[cutoff_day]}")
     required_capacity = daily_usage / sorted_daily_output.iloc[cutoff_day]
     print(f"Required capacity: {required_capacity}")
 
-    generator_energy = max(0, (50 * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:cutoff_day]) * required_capacity)
+    # Calculate capacities
+    solar_capacity = required_capacity * gamma
+    wind_capacity = required_capacity * (1 - gamma)
+
+    # Calculate daily outputs
+    solar_output = solar_daily * solar_capacity
+    wind_output = wind_daily * wind_capacity
+    combined_daily = solar_output + wind_output
+
+    # Calculate used energy and capacity factors
+    daily_demand = pd.Series([daily_usage] * len(combined_daily), index=combined_daily.index)
+    
+    used_solar = []
+    used_wind = []
+    
+    for day in range(len(combined_daily)):
+        total_available = combined_daily.iloc[day]
+        solar_available = solar_output.iloc[day]
+        wind_available = wind_output.iloc[day]
+        demand = daily_demand.iloc[day]
+        
+        if total_available <= demand:
+            # No curtailment needed
+            used_solar.append(solar_available)
+            used_wind.append(wind_available)
+        else:
+            # Curtailment needed
+            curtailment = total_available - demand
+            if solar_available == 0:
+                used_wind.append(wind_available - curtailment)
+                used_solar.append(0)
+            elif wind_available == 0:
+                used_solar.append(solar_available - curtailment)
+                used_wind.append(0)
+            else:
+                # Both resources available, share curtailment based on gamma
+                solar_curtailment = curtailment * gamma
+                wind_curtailment = curtailment * (1 - gamma)
+                used_solar.append(max(0, solar_available - solar_curtailment))
+                used_wind.append(max(0, wind_available - wind_curtailment))
+
+    used_solar = pd.Series(used_solar, index=combined_daily.index)
+    used_wind = pd.Series(used_wind, index=combined_daily.index)
+
+    solar_energy_used = used_solar.sum()
+    wind_energy_used = used_wind.sum()
+    solar_capacity_factor = solar_energy_used / (solar_capacity * 8760) if solar_capacity > 0 else 0
+    wind_capacity_factor = wind_energy_used / (wind_capacity * 8760) if wind_capacity > 0 else 0
+
+    # Calculate system requirements
+    print(f"Cutoff day value: {sorted_daily_output.iloc[cutoff_day]}")
+    print(f"Required capacity: {required_capacity}")
+
+    generator_energy = max(0, (CUTOFF_DAY * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:CUTOFF_DAY]) * required_capacity)
     print(f"Generator energy: {generator_energy}")
 
     annual_demand = 365 * daily_usage
@@ -85,11 +127,8 @@ def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.
     print(f"Generator fraction: {generator_fraction}")
 
     # Calculate costs
-    solar_capacity = required_capacity * gamma
-    wind_capacity = required_capacity * (1 - gamma)
-    
     # Interpolate battery storage hours based on gamma
-    battery_hours = 12 + (24 - 12) * gamma
+    battery_hours = SOLAR_BATTERY_STORAGE_HOURS * gamma + WIND_BATTERY_STORAGE_HOURS * (1 - gamma)
     battery_capacity = demand_in_kw * battery_hours
 
     system_cost = (
@@ -100,19 +139,12 @@ def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.
     )
     print(f"System cost: {system_cost}")
 
-    # Calculate LCOE
+    # Calculate LCOE and CAPEX per kW
     wacc = calculate_wacc()
     lcoe = calculate_lcoe(system_cost, annual_demand, generator_energy)
     capex_per_kw = calculate_capex_per_kw(system_cost, demand_in_kw)
 
-    # Calculate capacity factors
-    solar_energy_output = sum(solar_daily) * solar_capacity
-    wind_energy_output = sum(wind_daily) * wind_capacity
-    solar_capacity_factor = solar_energy_output / (solar_capacity * 24 * 365) if solar_capacity > 0 else 0
-    wind_capacity_factor = wind_energy_output / (wind_capacity * 24 * 365) if wind_capacity > 0 else 0
-
-    # Return the LCOE and other relevant data
-    return lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours
+    return lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours, solar_capacity_factor, wind_capacity_factor, capex_per_kw
 
 def plot_energy_output(solar_daily, wind_daily, required_capacity, demand_in_kw, cutoff_day, city, gamma):
     solar_output = solar_daily.fillna(0) * required_capacity * gamma
@@ -180,8 +212,8 @@ def plot_lcoe_vs_solar_fraction(gamma_values, lcoe_values, city):
     plt.show()
 
 if __name__ == "__main__":
-    city = "Tralee"
-    country = "Ireland"
+    city = "Naples"
+    country = "United States"
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
     
@@ -201,19 +233,41 @@ if __name__ == "__main__":
         print(f"LCOE: {result[0]:.4f}, Gamma: {result[1]:.4f}")
 
     # Find the result with the lowest LCOE
-    best_result = min(results, key=lambda x: x[0])
+    best_hybrid_result = min(results, key=lambda x: x[0])
     
-    print(f"\nBest result:")
-    print(f"Gamma: {best_result[1]:.4f}")
-    print(f"LCOE: ${best_result[0]:.4f}/kWh")
+    # Get solar-only and wind-only results
+    solar_only_result = next(result for result in results if result[1] == 1.0)
+    wind_only_result = next(result for result in results if result[1] == 0.0)
 
-    print(f"Solar capacity factor: {best_result[2]:.4f}")
-    print(f"Wind capacity factor: {best_result[3]:.4f}")
+    # Calculate the LCOE improvement of the hybrid system
+    best_single_lcoe = min(solar_only_result[0], wind_only_result[0])
+    lcoe_improvement = (best_single_lcoe - best_hybrid_result[0]) / best_single_lcoe
+
+    if lcoe_improvement >= HYBRID_LCOE_THRESHOLD:
+        best_result = best_hybrid_result
+        system_type = "Hybrid"
+    elif solar_only_result[0] <= wind_only_result[0]:
+        best_result = solar_only_result
+        system_type = "Solar + Gas"
+    else:
+        best_result = wind_only_result
+        system_type = "Wind + Gas"
 
     # Unpack the best result
-    lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours = best_result
+    (lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, 
+     solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours, 
+     solar_capacity_factor, wind_capacity_factor, capex_per_kw) = best_result
 
+    print(f"\nBest result ({system_type}):")
+    print(f"Gamma: {gamma:.4f}")
+    print(f"LCOE: ${lcoe:.4f}/kWh")
+    print(f"Solar capacity factor: {solar_capacity_factor:.4f}")
+    print(f"Wind capacity factor: {wind_capacity_factor:.4f}")
+    print(f"CAPEX per kW: ${capex_per_kw:.2f}/kW")
     print(f"Battery storage hours: {battery_hours:.2f}")
+
+    if system_type == "Hybrid":
+        print(f"LCOE improvement over best single source: {lcoe_improvement:.2%}")
 
     # Plot the energy output and capex breakdown for the best result
     plot_energy_output(solar_daily, wind_daily, required_capacity, demand_in_kw, cutoff_day, city, gamma)

@@ -26,7 +26,7 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     
     return df
 
-def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50, start_date="2022-01-01", end_date="2022-12-31"):
+def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUTOFF_DAY, start_date="2022-01-01", end_date="2022-12-31"):
     # Get coordinates
     coordinates = get_coordinates(city, country)
     if coordinates is None:
@@ -69,7 +69,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
 
     # Calculate generator input and fraction
     annual_demand = 365 * daily_usage
-    generator_input = (50 * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:cutoff_day]) * required_turbines_with_generators * 1000
+    generator_input = (CUTOFF_DAY * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:CUTOFF_DAY]) * required_turbines_with_generators * 1000
     generator_fraction = generator_input / annual_demand
 
     # Calculate average capacity factor (with generators)
@@ -103,7 +103,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
 
     # Pure wind case
     pure_wind_capacity = required_turbines_no_generators * turbine.nominal_power / 1e3  # in kW
-    battery_capacity = demand_in_kw * 12  # 12 hours of storage in kWh
+    battery_capacity = demand_in_kw * WIND_BATTERY_STORAGE_HOURS  # Battery storage in kWh
     pure_wind_cost = calculate_system_cost(pure_wind_capacity, battery_capacity)
 
     # Generator supported case
@@ -157,7 +157,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
     print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
     print(f"Capex per kW: ${OCGT_CAPEX_PER_KW:.2f}/kW")
 
-    print(f"\nPure Wind System (with 24h battery storage):")
+    print(f"\nPure Wind System (with {WIND_BATTERY_STORAGE_HOURS}h battery storage):")
     if required_turbines_no_generators != float('inf'):
         print(f"Total cost: ${pure_wind_cost:,.0f}")
         print(f"LCOE: ${pure_wind_lcoe:.4f}/kWh")
@@ -167,7 +167,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=50,
     else:
         print("Pure wind system is not feasible due to days with zero wind output.")
 
-    print(f"\nGenerator Supported System (with 24h battery storage):")
+    print(f"\nGenerator Supported System (with {WIND_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${supported_system_cost:,.0f}")
     print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")

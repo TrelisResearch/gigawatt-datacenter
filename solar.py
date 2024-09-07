@@ -13,6 +13,7 @@ GENERATOR_COST_PER_KW = 800
 SOLAR_PANEL_EFFICIENCY = 0.2
 SOLAR_PANEL_DENSITY = 0.4
 PROJECT_LIFETIME = 20
+SOLAR_BATTERY_STORAGE_HOURS = 24  # Hours of battery storage for pure solar system
 
 def get_location_data(city_name, country_name, locations):
     if city_name in locations:
@@ -125,7 +126,7 @@ def plot_capex_breakdown(solar_capacity, battery_capacity, generator_capacity, c
     plt.tight_layout()
     plt.show()
 
-def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cutoff_day=50):
+def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
     locations = {
         'Cork': {'latitude': 51.89, 'longitude': -8.47, 'name': 'Cork'},
         'Waterford': {'latitude': 52.26, 'longitude': -7.12, 'name': 'Waterford'},
@@ -140,9 +141,9 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     ac = simulate_solar_output(latitude, longitude)
     daily_output = calculate_daily_output(ac)
 
-    required_solar_array_no_generators, required_solar_array_with_generators, generator_energy, generator_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, cutoff_day)
+    required_solar_array_no_generators, required_solar_array_with_generators, generator_energy, generator_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, CUTOFF_DAY)
 
-    battery_capacity = demand_in_kw * 24
+    battery_capacity = demand_in_kw * SOLAR_BATTERY_STORAGE_HOURS
     pure_solar_cost = calculate_system_cost(required_solar_array_no_generators, battery_capacity)
     supported_system_cost = calculate_system_cost(required_solar_array_with_generators, battery_capacity, demand_in_kw)
 
@@ -163,7 +164,7 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     print("\nCost Analysis:")
     print(f"WACC: {wacc:.4f}")
 
-    print(f"\nPure Solar System (with 24h battery storage):")
+    print(f"\nPure Solar System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${pure_solar_cost:,.0f}")
     print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${pure_solar_capex_per_kw:.2f}/kW")
@@ -171,7 +172,7 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     area_km2, percentage = calculate_solar_area(required_solar_array_no_generators)
     print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
-    print(f"\nGenerator Supported System (with 24h battery storage):")
+    print(f"\nGenerator Supported System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${supported_system_cost:,.0f}")
     print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
@@ -180,7 +181,7 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     area_km2, percentage = calculate_solar_area(required_solar_array_with_generators)
     print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
-    plot_energy_output(daily_output, required_solar_array_with_generators, demand_in_kw, cutoff_day, city_name)
+    plot_energy_output(daily_output, required_solar_array_with_generators, demand_in_kw, CUTOFF_DAY, city_name)
     plot_capex_breakdown(required_solar_array_with_generators, battery_capacity, demand_in_kw, city_name)
 
 if __name__ == "__main__":

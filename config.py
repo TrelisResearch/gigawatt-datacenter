@@ -1,12 +1,12 @@
 # Cost parameters
-SOLAR_COST_PER_KW = 550  # $/kW
+SOLAR_COST_PER_KW = 350  # $/kW
 WIND_COST_PER_KW = 1300  # $/kW
 BATTERY_COST_PER_KWH = 250  # $/kWh
 GENERATOR_COST_PER_KW = 800  # $/kW
 
 # Solar parameters
 SOLAR_PANEL_EFFICIENCY = 0.2
-SOLAR_PANEL_DENSITY = 0.4
+SOLAR_PANEL_DENSITY = 0.4 # m2 of area per m2 of panels
 
 # Natural Gas parameters
 NG_PRICE_PER_MMBTU = 20  # €/MMBtu (typical European price)
@@ -19,8 +19,18 @@ OCGT_OPEX_PER_KWH = 0.02  # €/kWh for operation and maintenance
 
 # Combined Cycle Gas Turbine (CCGT) parameters
 CCGT_EFFICIENCY = 0.60  # 60% efficiency for combined cycle gas turbine
-CCGT_CAPEX_PER_KW = 1000  # $/kW
+CCGT_CAPEX_PER_KW = 1200  # $/kW
 CCGT_OPEX_PER_KWH = 0.01  # €/kWh for operation and maintenance
 
 # Project lifetime
 PROJECT_LIFETIME = 20  # years
+
+# Battery storage parameters
+SOLAR_BATTERY_STORAGE_HOURS = 24  # Hours of battery storage for pure solar system
+WIND_BATTERY_STORAGE_HOURS = 12   # Hours of battery storage for pure wind system
+
+# System design parameters
+CUTOFF_DAY = 50  # Number of days the system should be able to handle without generator support
+
+# Hybrid system threshold
+HYBRID_LCOE_THRESHOLD = 0.15  # 15% LCOE improvement threshold for hybriding
