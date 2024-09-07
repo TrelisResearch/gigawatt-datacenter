@@ -119,11 +119,19 @@ solar_cost_per_kw = 550  # $/kW
 battery_cost_per_kwh = 250  # $/kWh
 generator_cost_per_kw = 800  # $/kW
 
-# Natural Gas parameters (move this up)
-ng_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
+# Natural Gas parameters
 ng_price_per_mmbtu = 20  # €/MMBtu (typical European price)
 ng_price_per_kwh = ng_price_per_mmbtu / 293.07  # Convert €/MMBtu to €/kWh
-ng_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
+
+# Open Cycle Gas Turbine (OCGT) parameters
+ocgt_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
+ocgt_capex_per_kw = 800  # $/kW
+ocgt_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
+
+# Combined Cycle Gas Turbine (CCGT) parameters
+ccgt_efficiency = 0.60  # 60% efficiency for combined cycle gas turbine
+ccgt_capex_per_kw = 1200  # $/kW
+ccgt_opex_per_kwh = 0.015  # €/kWh for operation and maintenance
 
 # Calculate system costs
 def calculate_system_cost(solar_capacity, battery_capacity=0, generator_capacity=0):
@@ -145,38 +153,51 @@ supported_system_cost = calculate_system_cost(supported_solar_capacity, generato
 generator_energy = generator_input  # MWh/year
 
 # Calculate LCOE
-def calculate_lcoe(system_cost, annual_energy_output, annual_generator_energy=0):
+def calculate_lcoe(system_cost, annual_energy_output, annual_generator_energy=0, gt_efficiency=ocgt_efficiency, ng_opex_per_kwh=ocgt_opex_per_kwh):
     annual_capital_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
-    annual_generator_fuel_cost = annual_generator_energy * 1000 * (ng_price_per_kwh / ng_efficiency + ng_opex_per_kwh)
+    annual_generator_fuel_cost = annual_generator_energy * 1000 * (ng_price_per_kwh / gt_efficiency + ng_opex_per_kwh)
     total_annual_cost = annual_capital_cost + annual_generator_fuel_cost
     return total_annual_cost / (annual_energy_output * 1000)  # Convert MWh to kWh
 
 pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_demand)
-supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_demand, generator_energy)
+supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_demand, generator_energy, ccgt_efficiency)
 
-# Natural Gas Case
-def calculate_ng_lcoe(demand_mwh):
-    fuel_cost_per_kwh = ng_price_per_kwh / ng_efficiency
-    total_cost_per_kwh = fuel_cost_per_kwh + ng_opex_per_kwh
-    return total_cost_per_kwh
+# Natural Gas Case (CCGT)
+def calculate_ng_lcoe(demand_mwh, efficiency, capex_per_kw, opex_per_kwh):
+    annual_demand_kwh = demand_mwh * 1000
+    capacity_kw = demand_in_MW * 1000
+    
+    capex = capacity_kw * capex_per_kw
+    annual_capex = capex * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
+    
+    fuel_cost_per_kwh = ng_price_per_kwh / efficiency
+    annual_fuel_cost = annual_demand_kwh * fuel_cost_per_kwh
+    annual_opex = annual_demand_kwh * opex_per_kwh
+    
+    total_annual_cost = annual_capex + annual_fuel_cost + annual_opex
+    return total_annual_cost / annual_demand_kwh
 
-ng_lcoe = calculate_ng_lcoe(annual_demand)
+ocgt_lcoe = calculate_ng_lcoe(annual_demand, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
+ccgt_lcoe = calculate_ng_lcoe(annual_demand, ccgt_efficiency, ccgt_capex_per_kw, ccgt_opex_per_kwh)
 
 # Print results
 print("\nCost Analysis:")
 print(f"20-year Treasury rate: {rate_20y:.4f}")
 print(f"WACC: {wacc:.4f}")
 
-print(f"\nNatural Gas System:")
-# print(f"LCOE: €{ng_lcoe:.4f}/kWh")
-
 # Convert to USD for comparison
 usd_eur_rate = 1.1  # Assume 1 EUR = 1.1 USD
-print(f"LCOE: ${ng_lcoe * usd_eur_rate:.4f}/kWh")
+
+print(f"\nNatural Gas System (OCGT):")
+print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
+
+print(f"\nNatural Gas System (CCGT):")
+print(f"LCOE: ${ccgt_lcoe * usd_eur_rate:.4f}/kWh")
 
 print(f"\nPure Solar System:")
 print(f"Total cost: ${pure_solar_cost:,.0f}")
 print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
+
 print(f"\nGenerator Supported System:")
 print(f"Total cost: ${supported_system_cost:,.0f}")
 print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
