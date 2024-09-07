@@ -1,7 +1,5 @@
 from config import *
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 from utils import calculate_wacc, calculate_capex_per_kw
 
