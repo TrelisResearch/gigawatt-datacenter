@@ -5,18 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from utils import calculate_wacc, calculate_capex_per_kw
 
-# CCGT parameters
-ccgt_efficiency = 0.60  # 60% efficiency for combined cycle gas turbine
-ccgt_capex_per_kw = 1000  # $/kW
-ccgt_opex_per_kwh = 0.01  # €/kWh for operation and maintenance
-
-# Natural Gas parameters
-ng_price_per_mmbtu = 20  # €/MMBtu (typical European price)
-ng_price_per_kwh = ng_price_per_mmbtu / 293.07  # Convert €/MMBtu to €/kWh
-
-# Project lifetime
-project_lifetime = 20  # years
-
 def calculate_ccgt_lcoe(demand_kwh, efficiency, capex_per_kw, opex_per_kwh):
     wacc = calculate_wacc()
     capacity_kw = demand_kwh / (24 * 365 * 0.9)  # Assuming 90% capacity factor
@@ -37,6 +25,11 @@ def analyze_ccgt(daily_usage, demand_in_kw):
     ccgt_capex = demand_in_kw * CCGT_CAPEX_PER_KW
     ccgt_capex_per_kw_result = calculate_capex_per_kw(ccgt_capex, demand_in_kw)
 
+    wacc = calculate_wacc()
+    annual_capex = ccgt_capex * (wacc * (1 + wacc)**PROJECT_LIFETIME) / ((1 + wacc)**PROJECT_LIFETIME - 1)
+    fuel_cost = annual_energy_used * (NG_PRICE_PER_KWH / CCGT_EFFICIENCY)
+    opex = annual_energy_used * CCGT_OPEX_PER_KWH
+
     # Print cost analysis results
     print("\nCost Analysis for CCGT:")
     print(f"WACC: {calculate_wacc():.4f}")
@@ -44,14 +37,27 @@ def analyze_ccgt(daily_usage, demand_in_kw):
     print(f"Capex per kW: ${ccgt_capex_per_kw_result:.2f}/kW")
     print(f"Total Capex: ${ccgt_capex:,.0f}")
 
-    # Plotting
-    plot_ccgt_cost_breakdown(annual_energy_used, ccgt_efficiency, ccgt_capex, ccgt_opex_per_kwh)
+    results = {
+        'lcoe': ccgt_lcoe,
+        'capex_per_kw': ccgt_capex_per_kw_result,
+        'total_capex': ccgt_capex,
+        'capacity_gw': demand_in_kw / 1e6,
+        'annual_energy_used': annual_energy_used,
+        'wacc': wacc,
+        'cost_breakdown': {
+            'components': ['Capital Cost', 'Fuel Cost', 'O&M Cost'],
+            'values': [annual_capex, fuel_cost, opex]
+        }
+    }
 
-def plot_ccgt_cost_breakdown(annual_energy_used, efficiency, capex, opex_per_kwh):
+    return results
+
+def plot_ccgt_cost_breakdown(annual_energy_used):
     wacc = calculate_wacc()
-    annual_capex = capex * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
-    fuel_cost = annual_energy_used * (ng_price_per_kwh / efficiency)
-    opex = annual_energy_used * opex_per_kwh
+    capex = (annual_energy_used / (24 * 365 * 0.9)) * CCGT_CAPEX_PER_KW
+    annual_capex = capex * (wacc * (1 + wacc)**PROJECT_LIFETIME) / ((1 + wacc)**PROJECT_LIFETIME - 1)
+    fuel_cost = annual_energy_used * (NG_PRICE_PER_KWH / CCGT_EFFICIENCY)
+    opex = annual_energy_used * CCGT_OPEX_PER_KWH
 
     cost_components = [annual_capex, fuel_cost, opex]
     labels = ['Capital Cost', 'Fuel Cost', 'O&M Cost']

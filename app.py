@@ -2,6 +2,7 @@ import gradio as gr
 import plotly.graph_objects as go
 from solar import analyze_solar_system
 from wind import analyze_wind_energy
+from ccgt import analyze_ccgt
 import config
 
 def analyze_energy_systems(city, country, demand_gw, 
@@ -104,8 +105,27 @@ def analyze_energy_systems(city, country, demand_gw,
                                             hole=.3)])
     wind_capex_fig.update_layout(title=f'Capex Breakdown for Wind + Gas System in {city} ($ million)')
 
+    # CCGT analysis
+    ccgt_results = analyze_ccgt(daily_usage, demand_kw)
+    
+    ccgt_output_text = f"""
+    CCGT System Results:
+    LCOE: ${ccgt_results['lcoe']:.4f}/kWh
+    Capacity: {ccgt_results['capacity_gw']:.2f} GW
+    Capex per kW: ${ccgt_results['capex_per_kw']:.2f}/kW
+    Total Capex: ${ccgt_results['total_capex']:,.0f}
+    Annual Energy Used: {ccgt_results['annual_energy_used']:,.0f} kWh
+    WACC: {ccgt_results['wacc']:.4%}
+    """
+    
+    ccgt_cost_fig = go.Figure(data=[go.Pie(labels=ccgt_results['cost_breakdown']['components'], 
+                                           values=ccgt_results['cost_breakdown']['values'], 
+                                           hole=.3)])
+    ccgt_cost_fig.update_layout(title='Annual Cost Breakdown for CCGT')
+
     return (solar_output_text, solar_energy_fig, solar_capex_fig,
-            wind_output_text, wind_energy_fig, wind_capex_fig)
+            wind_output_text, wind_energy_fig, wind_capex_fig,
+            ccgt_output_text, ccgt_cost_fig)
 
 with gr.Blocks() as iface:
     gr.Markdown("# Solar/Wind + Gas Energy System Analysis")
@@ -128,6 +148,10 @@ with gr.Blocks() as iface:
             wind_results = gr.Textbox(label="Results")
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
+        
+        with gr.TabItem("CCGT Analysis Results"):
+            ccgt_results = gr.Textbox(label="Results")
+            ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
         
         with gr.TabItem("Advanced Settings"):
             with gr.Column():
@@ -169,7 +193,8 @@ with gr.Blocks() as iface:
         ],
         outputs=[
             solar_results, solar_energy_output, solar_capex_breakdown,
-            wind_results, wind_energy_output, wind_capex_breakdown
+            wind_results, wind_energy_output, wind_capex_breakdown,
+            ccgt_results, ccgt_cost_breakdown
         ]
     )
 
