@@ -194,7 +194,8 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
                 gas_capacity * OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
             ]
         },
-        "total_capex": supported_system_cost / 1e6  # Convert to millions
+        "total_capex": supported_system_cost / 1e6,  # Convert to millions
+        "wacc": wacc  # Add this line
     }
 
     return results

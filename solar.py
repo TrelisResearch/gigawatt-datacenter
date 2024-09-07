@@ -157,7 +157,8 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         "capex_per_kw": supported_system_capex_per_kw,
         "energy_output_data": energy_output_data,
         "capex_breakdown_data": capex_breakdown_data,
-        "total_capex": supported_system_cost / 1e6  # Convert to millions
+        "total_capex": supported_system_cost / 1e6,  # Convert to millions
+        "wacc": wacc  # Add this line
     }
 
 if __name__ == "__main__":

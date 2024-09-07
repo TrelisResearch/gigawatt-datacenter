@@ -6,6 +6,7 @@ from ccgt import analyze_ccgt
 from solar_wind import analyze_hybrid_system
 import config
 from geopy.geocoders import Nominatim
+import pandas as pd
 
 def get_coordinates(location):
     geolocator = Nominatim(user_agent="SolarScript/1.0")
@@ -70,18 +71,21 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Solar analysis
     solar_results = analyze_solar_system(lat, lon, demand_kw, daily_usage)
     
-    solar_output_text = f"""
-    Solar + Gas System Results:
-    LCOE: ${solar_results['lcoe']:.4f}/kWh
-    Solar Fraction: {solar_results['solar_fraction']:.2%}
-    Gas Fraction: {solar_results['gas_fraction']:.2%}
-    Solar Capacity Factor: {solar_results['capacity_factor']:.2%}
-    Solar Area: {solar_results['solar_area_km2']:.2f} km² ({solar_results['solar_area_percentage']:.2f}% of Ireland)
-    Solar Capacity: {solar_results['solar_capacity_gw']:.2f} GW
-    Gas Capacity: {solar_results['gas_capacity_gw']:.2f} GW
-    Capex per kW: ${solar_results['capex_per_kw']} $/kW
-    Total Capex: ${solar_results['total_capex']:.2f} million
-    """
+    # Solar results
+    solar_results_df = pd.DataFrame({
+        'Metric': ['LCOE', 'Solar Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Solar Capacity Factor', 
+                   'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+        'Value': [f"${solar_results['lcoe']:.4f}/kWh", 
+                  f"{solar_results['solar_fraction']:.2%}",
+                  f"{solar_results['gas_fraction']:.2%}",
+                  f"{solar_results['capacity_factor']:.2%}",
+                  f"{solar_results['solar_area_km2']:.2f} km² ({solar_results['solar_area_percentage']:.2f}% of Ireland)",
+                  f"{solar_results['solar_capacity_gw']:.2f} GW",
+                  f"{solar_results['gas_capacity_gw']:.2f} GW",
+                  f"${int(solar_results['capex_per_kw'])} $/kW",
+                  f"${solar_results['total_capex']:.0f} million",
+                  f"{solar_results['wacc']:.1%}"]
+    })
     
     # Update plot styling
     plot_layout = dict(
@@ -145,17 +149,20 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Wind analysis
     wind_results = analyze_wind_energy(lat, lon, daily_usage, demand_kw, cutoff_day)
     
-    wind_output_text = f"""
-    Wind + Gas System Results:
-    LCOE: ${wind_results['lcoe']:.4f}/kWh
-    Wind Fraction: {wind_results['wind_fraction']:.2%}
-    Gas Fraction: {wind_results['gas_fraction']:.2%}
-    Wind Capacity Factor: {wind_results['capacity_factor']:.2%}
-    Wind Capacity: {wind_results['wind_capacity_gw']:.2f} GW
-    Gas Capacity: {wind_results['gas_capacity_gw']:.2f} GW
-    Capex per kW: ${wind_results['capex_per_kw']} $/kW
-    Total Capex: ${wind_results['total_capex']:.2f} million
-    """
+    # Wind results
+    wind_results_df = pd.DataFrame({
+        'Metric': ['LCOE', 'Wind Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Wind Capacity Factor', 
+                   'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+        'Value': [f"${wind_results['lcoe']:.4f}/kWh", 
+                  f"{wind_results['wind_fraction']:.2%}",
+                  f"{wind_results['gas_fraction']:.2%}",
+                  f"{wind_results['capacity_factor']:.2%}",
+                  f"{wind_results['wind_capacity_gw']:.2f} GW",
+                  f"{wind_results['gas_capacity_gw']:.2f} GW",
+                  f"${int(wind_results['capex_per_kw'])} $/kW",
+                  f"${int(wind_results['total_capex'])} million",
+                  f"{wind_results['wacc']:.1%}"]
+    })
     
     # Wind energy output plot
     wind_energy_fig = go.Figure()
@@ -207,15 +214,17 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # CCGT analysis
     ccgt_results = analyze_ccgt(daily_usage, demand_kw)
     
-    ccgt_output_text = f"""
-    CCGT System Results:
-    LCOE: ${ccgt_results['lcoe']:.4f}/kWh
-    Capacity: {ccgt_results['capacity_gw']:.2f} GW
-    Capex per kW: ${ccgt_results['capex_per_kw']:.2f}/kW
-    Total Capex: ${ccgt_results['total_capex']:,.0f}
-    Annual Energy Used: {ccgt_results['annual_energy_used']:,.0f} kWh
-    WACC: {ccgt_results['wacc']:.4%}
-    """
+    # CCGT results
+    ccgt_results_df = pd.DataFrame({
+        'Metric': ['LCOE', 'Capacity', 'Capex per kW', 'Total Capex', 
+                   'Annual Energy Used', 'WACC'],
+        'Value': [f"${ccgt_results['lcoe']:.4f}/kWh",
+                  f"{ccgt_results['capacity_gw']:.2f} GW",
+                  f"${ccgt_results['capex_per_kw']:.2f}/kW",
+                  f"${ccgt_results['total_capex']:,.0f}",
+                  f"{ccgt_results['annual_energy_used']:,.0f} kWh",
+                  f"{ccgt_results['wacc']:.1%}"]
+    })
     
     # CCGT cost breakdown plot
     ccgt_cost_fig = go.Figure(go.Bar(
@@ -233,21 +242,25 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Hybrid system analysis
     hybrid_results = analyze_hybrid_system(lat, lon, demand_kw, daily_usage, cutoff_day)
     
-    hybrid_output_text = f"""
-    Wind + Gas System Results:
-    LCOE: ${hybrid_results['lcoe']:.4f}/kWh
-    Solar Fraction: {hybrid_results['solar_fraction']:.2%}
-    Wind Fraction: {hybrid_results['wind_fraction']:.2%}
-    Gas Fraction: {hybrid_results['gas_fraction']:.2%}
-    Solar Capacity Factor: {hybrid_results['solar_capacity_factor']:.2%}
-    Wind Capacity Factor: {hybrid_results['wind_capacity_factor']:.2%}
-    Solar Capacity: {hybrid_results['solar_capacity_gw']:.2f} GW
-    Wind Capacity: {hybrid_results['wind_capacity_gw']:.2f} GW
-    Gas Capacity: {hybrid_results['gas_capacity_gw']:.2f} GW
-    Battery Capacity: {hybrid_results['battery_capacity_gwh']:.2f} GWh
-    Capex per kW: ${hybrid_results['capex_per_kw']:.2f}/kW
-    Total Capex: ${hybrid_results['total_capex']:.2f} million
-    """
+    # Hybrid results
+    hybrid_results_df = pd.DataFrame({
+        'Metric': ['LCOE', 'Solar Fraction', 'Wind Fraction', 'Gas Fraction', 
+                   'Solar Capacity Factor', 'Wind Capacity Factor', 'Solar Capacity', 
+                   'Wind Capacity', 'Gas Capacity', 'Battery Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+        'Value': [f"${hybrid_results['lcoe']:.4f}/kWh",
+                  f"{hybrid_results['solar_fraction']:.2%}",
+                  f"{hybrid_results['wind_fraction']:.2%}",
+                  f"{hybrid_results['gas_fraction']:.2%}",
+                  f"{hybrid_results['solar_capacity_factor']:.2%}",
+                  f"{hybrid_results['wind_capacity_factor']:.2%}",
+                  f"{hybrid_results['solar_capacity_gw']:.2f} GW",
+                  f"{hybrid_results['wind_capacity_gw']:.2f} GW",
+                  f"{hybrid_results['gas_capacity_gw']:.2f} GW",
+                  f"{hybrid_results['battery_capacity_gwh']:.2f} GWh",
+                  f"${int(hybrid_results['capex_per_kw'])}/kW",
+                  f"${int(hybrid_results['total_capex']):,.0f}",
+                  f"{hybrid_results['wacc']:.1%}"]
+    })
     
     # Hybrid energy output plot
     hybrid_energy_fig = go.Figure()
@@ -307,10 +320,10 @@ def analyze_energy_systems(lat, lon, demand_gw,
         **plot_layout
     )
 
-    return (solar_output_text, solar_energy_fig, solar_capex_fig,
-            wind_output_text, wind_energy_fig, wind_capex_fig,
-            ccgt_output_text, ccgt_cost_fig,
-            hybrid_output_text, hybrid_energy_fig, hybrid_capex_fig)
+    return (solar_results_df, solar_energy_fig, solar_capex_fig,
+            wind_results_df, wind_energy_fig, wind_capex_fig,
+            ccgt_results_df, ccgt_cost_fig,
+            hybrid_results_df, hybrid_energy_fig, hybrid_capex_fig)
 
 def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *args):
     try:
@@ -343,9 +356,14 @@ def update_visibility(choice):
     )
 
 with gr.Blocks() as iface:
-    gr.Markdown("# Solar/Wind + Gas Energy System Analysis")
-    gr.Markdown("Analyze a solar or wind energy system with gas backup for a given location and demand.")
-    
+    gr.Markdown("# Gigawatt Data Center")
+    gr.Markdown("Design approach:")
+    gr.Markdown("- Select between wind, solar, wind + solar, or gas (combined cycle)")
+    gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.")
+    gr.Markdown("- For wind/solar/wind+solar, an open cycle gas turbine is used to balance load for a max of 50 days per year.")
+    gr.Markdown("- The solar + wind hybrid system shown is that which minimises the levelised cost of energy. Typically this resolves to a pure solar (+ gas) or pure wind (+ gas) system.")
+    gr.Markdown("- All $/kW costs are on an installed basis.")
+
     input_type = gr.Radio(["Location", "Coordinates"], label="Input Method", value="Location")
     
     with gr.Column(visible=True) as location_column:
@@ -371,40 +389,43 @@ with gr.Blocks() as iface:
     with gr.Row():
         demand_gw = gr.Slider(minimum=0.1, maximum=10, value=1, label="Demand (GW)")
     
-    submit_button = gr.Button("Submit")
+    submit_button = gr.Button("Analyse")
 
     with gr.Tabs() as tabs:
         with gr.TabItem("Solar Analysis Results", id="solar_tab"):
-            solar_results = gr.Textbox(label="Results")
+            solar_results = gr.Dataframe(label="Key Results")
             solar_energy_output = gr.Plot(label="Energy Output")
             solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
         with gr.TabItem("Wind Analysis Results", id="wind_tab"):
-            wind_results = gr.Textbox(label="Results")
+            wind_results = gr.Dataframe(label="Key Results")
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
         with gr.TabItem("Hybrid System Analysis Results", id="hybrid_tab"):
-            hybrid_results = gr.Textbox(label="Results")
+            hybrid_results = gr.Dataframe(label="Key Results")
             hybrid_energy_output = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
 
         with gr.TabItem("CCGT Analysis Results", id="ccgt_tab"):
-            ccgt_results = gr.Textbox(label="Results")
+            ccgt_results = gr.Dataframe(label="Key Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
 
         with gr.TabItem("Advanced Settings", id="advanced_tab"):
             with gr.Column():
-                gr.Markdown("### Cost Parameters")
-                solar_cost = gr.Slider(minimum=100, maximum=1000, value=config.SOLAR_COST_PER_KW, label="Solar Cost ($/kW)", info="Cost per kW of solar installation")
-                wind_cost = gr.Slider(minimum=500, maximum=2000, value=config.WIND_COST_PER_KW, label="Wind Cost ($/kW)", info="Cost per kW of wind installation")
+                gr.Markdown("### Battery Parameters")
                 battery_cost = gr.Slider(minimum=100, maximum=500, value=config.BATTERY_COST_PER_KWH, label="Battery Cost ($/kWh)", info="Cost per kWh of battery storage")
 
                 gr.Markdown("### Solar Parameters")
+                solar_cost = gr.Slider(minimum=100, maximum=1000, value=config.SOLAR_COST_PER_KW, label="Solar Cost ($/kW)", info="Cost per kW of solar installation")
                 solar_efficiency = gr.Slider(minimum=0.1, maximum=0.3, value=config.SOLAR_PANEL_EFFICIENCY, label="Solar Panel Efficiency", info="Efficiency of solar panels")
                 solar_density = gr.Slider(minimum=0.2, maximum=0.6, value=config.SOLAR_PANEL_DENSITY, label="Solar Panel Density", info="m² of panel area per m² of land")
                 solar_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.SOLAR_BATTERY_STORAGE_HOURS, label="Solar Battery Storage (hours)", info="Hours of battery storage for solar system")
                 
+                gr.Markdown("### Wind Parameters")
+                wind_cost = gr.Slider(minimum=500, maximum=2000, value=config.WIND_COST_PER_KW, label="Wind Cost ($/kW)", info="Cost per kW of wind installation")
+                wind_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.WIND_BATTERY_STORAGE_HOURS, label="Wind Battery Storage (hours)", info="Hours of battery storage for wind system")
+
                 gr.Markdown("### Gas Parameters")
                 ng_price = gr.Slider(minimum=5, maximum=50, value=config.NG_PRICE_PER_MMBTU, label="Natural Gas Price ($/MMBtu)", info="Price of natural gas")
                 ocgt_efficiency = gr.Slider(minimum=0.2, maximum=0.5, value=config.OCGT_EFFICIENCY, label="OCGT Efficiency", info="Efficiency of open cycle gas turbine")
@@ -416,7 +437,6 @@ with gr.Blocks() as iface:
                 
                 gr.Markdown("### System Parameters")
                 project_lifetime = gr.Slider(minimum=10, maximum=30, value=config.PROJECT_LIFETIME, label="Project Lifetime (years)", info="Expected lifetime of the project")
-                wind_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.WIND_BATTERY_STORAGE_HOURS, label="Wind Battery Storage (hours)", info="Hours of battery storage for wind system")
                 cutoff_day = gr.Slider(minimum=10, maximum=100, value=config.CUTOFF_DAY, label="Cutoff Day", info="Days system should handle without gas")
                 hybrid_threshold = gr.Slider(minimum=0.05, maximum=0.3, value=config.HYBRID_LCOE_THRESHOLD, label="Hybrid LCOE Threshold", info="If hybrid solar + wind is not this fraction cheaper than wind or solar alone, defaults to the cheaper of wind OR solar.")
 

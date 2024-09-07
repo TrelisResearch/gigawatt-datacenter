@@ -17,7 +17,9 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff
     # Remove the get_coordinates function call
     print(f"Analyzing hybrid system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
-    # Simulate solar output
+
+    wacc = calculate_wacc()    # Simulate solar output
+
     solar_output = simulate_solar_output(latitude, longitude)
     solar_daily = pd.Series(calculate_solar_daily_output(solar_output))
 
@@ -154,7 +156,8 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff
         "capex_breakdown_data": capex_breakdown_data,
         "total_capex": total_capex,
         "latitude": latitude,
-        "longitude": longitude
+        "longitude": longitude,
+        "wacc": wacc
     }
 
 if __name__ == "__main__":
