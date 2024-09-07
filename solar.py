@@ -51,14 +51,14 @@ def calculate_daily_output(ac):
     hour_counter = 0
     daily_output = []
 
-    for hourly_output in ac[7:-17]:  
+    for hourly_output in ac:  # Modified this line
         if hour_counter < 24:
             daily_energy_sum += hourly_output
             hour_counter += 1
         else:
             daily_output.append(daily_energy_sum)
-            daily_energy_sum = 0
-            hour_counter = 0
+            daily_energy_sum = hourly_output
+            hour_counter = 1
 
     if daily_energy_sum > 0:
         daily_output.append(daily_energy_sum)
