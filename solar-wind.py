@@ -106,8 +106,8 @@ def analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma=0.
     # Calculate capacity factors
     solar_energy_output = sum(solar_daily) * solar_capacity
     wind_energy_output = sum(wind_daily) * wind_capacity
-    solar_capacity_factor = solar_energy_output / (solar_capacity * 24 * 365)
-    wind_capacity_factor = wind_energy_output / (wind_capacity * 24 * 365)
+    solar_capacity_factor = solar_energy_output / (solar_capacity * 24 * 365) if solar_capacity > 0 else 0
+    wind_capacity_factor = wind_energy_output / (wind_capacity * 24 * 365) if wind_capacity > 0 else 0
 
     # Return the LCOE and other relevant data
     return lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours
@@ -166,18 +166,37 @@ def plot_capex_breakdown(solar_capacity, wind_capacity, battery_capacity, genera
     plt.tight_layout()
     plt.show()
 
+def plot_lcoe_vs_solar_fraction(gamma_values, lcoe_values, city):
+    plt.figure(figsize=(10, 6))
+    plt.plot(gamma_values * 100, lcoe_values, marker='o')
+    plt.xlabel('Solar Fraction (%)')
+    plt.ylabel('LCOE ($/kWh)')
+    plt.title(f'LCOE vs Solar Fraction in {city}')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.ylim(bottom=0)  # Set y-axis to start at 0
+    plt.tight_layout()
+    plt.show()
+
 if __name__ == "__main__":
-    city = "Waterford"
+    city = "Tralee"
     country = "Ireland"
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
     
-    gamma_values = np.linspace(0, 1, 10)  # Changed to 5 values
+    gamma_values = np.linspace(0, 1, 5)  # Changed to 5 values
     results = []
 
     for gamma in gamma_values:
         result = analyze_wind_solar_system(city, country, demand_in_kw, daily_usage, gamma)
         results.append(result)
+
+    lcoe_values = [result[0] for result in results]
+    
+    # Plot LCOE vs Solar Fraction
+    plot_lcoe_vs_solar_fraction(gamma_values, lcoe_values, city)
+
+    for result in results:
+        print(f"LCOE: {result[0]:.4f}, Gamma: {result[1]:.4f}")
 
     # Find the result with the lowest LCOE
     best_result = min(results, key=lambda x: x[0])
@@ -185,6 +204,9 @@ if __name__ == "__main__":
     print(f"\nBest result:")
     print(f"Gamma: {best_result[1]:.4f}")
     print(f"LCOE: ${best_result[0]:.4f}/kWh")
+
+    print(f"Solar capacity factor: {best_result[2]:.4f}")
+    print(f"Wind capacity factor: {best_result[3]:.4f}")
 
     # Unpack the best result
     lcoe, gamma, solar_capacity, wind_capacity, battery_capacity, demand_in_kw, solar_daily, wind_daily, required_capacity, cutoff_day, battery_hours = best_result

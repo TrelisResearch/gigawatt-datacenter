@@ -182,7 +182,7 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     plot_capex_breakdown(required_solar_array_with_generators, battery_capacity, demand_in_kw, city_name)
 
 if __name__ == "__main__":
-    city_name = 'Boston'
+    city_name = 'Tuscon'
     country_name = 'United States'
     demand_in_kw = 1000000
     daily_usage = 24000000
