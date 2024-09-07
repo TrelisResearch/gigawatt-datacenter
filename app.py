@@ -11,7 +11,8 @@ def analyze_energy_systems(city, country, demand_gw,
                            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
                            ccgt_efficiency, ccgt_capex, ccgt_opex,
                            project_lifetime, solar_battery_hours, wind_battery_hours,
-                           cutoff_day, hybrid_threshold):
+                           cutoff_day, hybrid_threshold,
+                           equity_premium, debt_premium, debt_ratio, tax_rate):
     
     # Update config values
     config.SOLAR_COST_PER_KW = solar_cost
@@ -32,6 +33,11 @@ def analyze_energy_systems(city, country, demand_gw,
     config.WIND_BATTERY_STORAGE_HOURS = wind_battery_hours
     config.CUTOFF_DAY = cutoff_day
     config.HYBRID_LCOE_THRESHOLD = hybrid_threshold
+    config.EQUITY_PREMIUM = equity_premium / 100
+    config.DEBT_PREMIUM = debt_premium / 100
+    config.DEBT_RATIO = debt_ratio / 100
+    config.EQUITY_RATIO = 1 - (debt_ratio / 100)
+    config.TAX_RATE = tax_rate / 100
 
     demand_kw = demand_gw * 1e6
     daily_usage = demand_kw * 24
@@ -166,19 +172,25 @@ with gr.Blocks() as iface:
                 solar_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.SOLAR_BATTERY_STORAGE_HOURS, label="Solar Battery Storage (hours)", info="Hours of battery storage for solar system")
                 
                 gr.Markdown("### Gas Parameters")
-                ng_price = gr.Slider(minimum=5, maximum=50, value=config.NG_PRICE_PER_MMBTU, label="Natural Gas Price (€/MMBtu)", info="Price of natural gas")
+                ng_price = gr.Slider(minimum=5, maximum=50, value=config.NG_PRICE_PER_MMBTU, label="Natural Gas Price ($/MMBtu)", info="Price of natural gas")
                 ocgt_efficiency = gr.Slider(minimum=0.2, maximum=0.5, value=config.OCGT_EFFICIENCY, label="OCGT Efficiency", info="Efficiency of open cycle gas turbine")
                 ocgt_capex = gr.Slider(minimum=400, maximum=1200, value=config.OCGT_CAPEX_PER_KW, label="OCGT CAPEX ($/kW)", info="Capital expenditure for OCGT")
-                ocgt_opex = gr.Slider(minimum=0.01, maximum=0.05, value=config.OCGT_OPEX_PER_KWH, label="OCGT OPEX (€/kWh)", info="Operating expenditure for OCGT")
+                ocgt_opex = gr.Slider(minimum=0.01, maximum=0.05, value=config.OCGT_OPEX_PER_KWH, label="OCGT OPEX ($/kWh)", info="Operating expenditure for OCGT")
                 ccgt_efficiency = gr.Slider(minimum=0.4, maximum=0.7, value=config.CCGT_EFFICIENCY, label="CCGT Efficiency", info="Efficiency of combined cycle gas turbine")
                 ccgt_capex = gr.Slider(minimum=800, maximum=1600, value=config.CCGT_CAPEX_PER_KW, label="CCGT CAPEX ($/kW)", info="Capital expenditure for CCGT")
-                ccgt_opex = gr.Slider(minimum=0.005, maximum=0.03, value=config.CCGT_OPEX_PER_KWH, label="CCGT OPEX (€/kWh)", info="Operating expenditure for CCGT")
+                ccgt_opex = gr.Slider(minimum=0.005, maximum=0.03, value=config.CCGT_OPEX_PER_KWH, label="CCGT OPEX ($/kWh)", info="Operating expenditure for CCGT")
                 
                 gr.Markdown("### System Parameters")
                 project_lifetime = gr.Slider(minimum=10, maximum=30, value=config.PROJECT_LIFETIME, label="Project Lifetime (years)", info="Expected lifetime of the project")
                 wind_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.WIND_BATTERY_STORAGE_HOURS, label="Wind Battery Storage (hours)", info="Hours of battery storage for wind system")
                 cutoff_day = gr.Slider(minimum=10, maximum=100, value=config.CUTOFF_DAY, label="Cutoff Day", info="Days system should handle without gas")
                 hybrid_threshold = gr.Slider(minimum=0.05, maximum=0.3, value=config.HYBRID_LCOE_THRESHOLD, label="Hybrid LCOE Threshold", info="If hybrid solar + wind is not this fraction cheaper than wind or solar alone, defaults to the cheaper of wind OR solar.")
+
+                gr.Markdown("### Financing Parameters")
+                equity_premium = gr.Slider(minimum=1, maximum=10, value=config.EQUITY_PREMIUM * 100, label="Equity Premium (%)", info="Additional return beyond 20 year US bonds required for equity investment as a percentage")
+                debt_premium = gr.Slider(minimum=1, maximum=10, value=config.DEBT_PREMIUM * 100, label="Debt Premium (%)", info="Additional return beyond 20 year US bonds required for debt investment as a percentage")
+                debt_ratio = gr.Slider(minimum=10, maximum=90, value=config.DEBT_RATIO * 100, label="Debt Ratio (%)", info="Proportion of financing from debt as a percentage")
+                tax_rate = gr.Slider(minimum=10, maximum=40, value=config.TAX_RATE * 100, label="Tax Rate (%)", info="Corporate tax rate as a percentage")
 
     submit_button.click(
         fn=analyze_energy_systems,
@@ -189,7 +201,8 @@ with gr.Blocks() as iface:
             ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
             ccgt_efficiency, ccgt_capex, ccgt_opex,
             project_lifetime, solar_battery_hours, wind_battery_hours,
-            cutoff_day, hybrid_threshold
+            cutoff_day, hybrid_threshold,
+            equity_premium, debt_premium, debt_ratio, tax_rate
         ],
         outputs=[
             solar_results, solar_energy_output, solar_capex_breakdown,

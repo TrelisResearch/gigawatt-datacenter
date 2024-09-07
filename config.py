@@ -9,17 +9,17 @@ SOLAR_PANEL_DENSITY = 0.4 # m2 of area per m2 of panels
 
 # Natural Gas parameters
 NG_PRICE_PER_MMBTU = 20  # $/MMBtu (typical European price)
-NG_PRICE_PER_KWH = NG_PRICE_PER_MMBTU / 293.07  # Convert €/MMBtu to €/kWh
+NG_PRICE_PER_KWH = NG_PRICE_PER_MMBTU / 293.07  # Convert $/MMBtu to $/kWh
 
 # Open Cycle Gas Turbine (OCGT) parameters
 OCGT_EFFICIENCY = 0.35  # 35% efficiency for open cycle gas turbine
 OCGT_CAPEX_PER_KW = 800  # $/kW
-OCGT_OPEX_PER_KWH = 0.02  # €/kWh for operation and maintenance
+OCGT_OPEX_PER_KWH = 0.02  # $/kWh for operation and maintenance
 
 # Combined Cycle Gas Turbine (CCGT) parameters
 CCGT_EFFICIENCY = 0.60  # 60% efficiency for combined cycle gas turbine
 CCGT_CAPEX_PER_KW = 1200  # $/kW
-CCGT_OPEX_PER_KWH = 0.01  # €/kWh for operation and maintenance
+CCGT_OPEX_PER_KWH = 0.01  # $/kWh for operation and maintenance
 
 # Project lifetime
 PROJECT_LIFETIME = 20  # years
@@ -33,3 +33,10 @@ CUTOFF_DAY = 50  # Number of days the system should be able to handle without ga
 
 # Hybrid system threshold
 HYBRID_LCOE_THRESHOLD = 0.15  # 15% LCOE improvement threshold for hybriding
+
+# WACC parameters
+EQUITY_PREMIUM = 0.05
+DEBT_PREMIUM = 0.02
+DEBT_RATIO = 0.6
+EQUITY_RATIO = 0.4
+TAX_RATE = 0.21
