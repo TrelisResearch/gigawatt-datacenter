@@ -11,7 +11,7 @@ locations = {
     'Tuscon': {'latitude': 32.43, 'longitude': -111.1, 'name': 'Tuscon'}
 }
 
-city_name = 'San Antonio'  # Change this to 'Waterford' or 'Dublin' as needed
+city_name = 'Waterford'  # Change this to 'Waterford' or 'Dublin' as needed
 
 # Get the location information for the selected city
 latitude = locations[city_name]['latitude']
@@ -72,8 +72,8 @@ daily_output.sort()
 
 # Define energy usage and other requirements
 cutoff_day = 50  # This could be adjusted based on seasonality and your use case
-daily_usage = 2400  # Adjust according to actual daily usage (in MWh)
-demand_in_MW = 100  # Demand in MW
+demand_in_MW = 1000  # Demand in MW
+daily_usage = 24000  # Adjust according to actual daily usage (in MWh)
 
 # Output results for the required solar array sizes
 # Calculate total annual energy demand
@@ -142,27 +142,32 @@ def calculate_system_cost(solar_capacity, battery_capacity=0, generator_capacity
 
 # Pure solar case
 pure_solar_capacity = required_solar_array_no_generators * 1000  # Convert to kW
-pure_solar_cost = calculate_system_cost(pure_solar_capacity)
+battery_capacity = demand_in_MW * 24 * 1000  # 24 hours of storage in kWh
+pure_solar_cost = calculate_system_cost(pure_solar_capacity, battery_capacity)
 
 # Generator supported case
 supported_solar_capacity = required_solar_array_with_generators * 1000  # Convert to kW
 generator_capacity = demand_in_MW * 1000  # Convert to kW
-supported_system_cost = calculate_system_cost(supported_solar_capacity, generator_capacity=generator_capacity)
+supported_system_cost = calculate_system_cost(supported_solar_capacity, battery_capacity, generator_capacity)
 
-# Calculate annual generator energy production
-generator_energy = generator_input  # MWh/year
+# Calculate annual energy used (which is equal to the demand)
+annual_energy_used = 365 * daily_usage  # in MWh
+
+# Calculate annual energy generated for solar systems
+pure_solar_energy_generated = sum(daily_output) * required_solar_array_no_generators  # in MWh
+supported_solar_energy_generated = sum(daily_output) * required_solar_array_with_generators + generator_input  # in MWh
 
 # Calculate LCOE
-def calculate_lcoe(system_cost, annual_energy_output, annual_generator_energy=0, gt_efficiency=ocgt_efficiency, ng_opex_per_kwh=ocgt_opex_per_kwh):
+def calculate_lcoe(system_cost, annual_energy_used, annual_energy_generated, annual_generator_energy=0):
     annual_capital_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
-    annual_generator_fuel_cost = annual_generator_energy * 1000 * (ng_price_per_kwh / gt_efficiency + ng_opex_per_kwh)
+    annual_generator_fuel_cost = annual_generator_energy * 1000 * (ng_price_per_kwh / ocgt_efficiency + ocgt_opex_per_kwh)
     total_annual_cost = annual_capital_cost + annual_generator_fuel_cost
-    return total_annual_cost / (annual_energy_output * 1000)  # Convert MWh to kWh
+    return total_annual_cost / (annual_energy_used * 1000)  # Convert MWh to kWh
 
-pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_demand)
-supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_demand, generator_energy, ccgt_efficiency)
+pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_energy_used, pure_solar_energy_generated)
+supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, supported_solar_energy_generated, generator_input)
 
-# Natural Gas Case (CCGT)
+# Natural Gas Case (CCGT and OCGT)
 def calculate_ng_lcoe(demand_mwh, efficiency, capex_per_kw, opex_per_kwh):
     annual_demand_kwh = demand_mwh * 1000
     capacity_kw = demand_in_MW * 1000
@@ -177,8 +182,8 @@ def calculate_ng_lcoe(demand_mwh, efficiency, capex_per_kw, opex_per_kwh):
     total_annual_cost = annual_capex + annual_fuel_cost + annual_opex
     return total_annual_cost / annual_demand_kwh
 
-ocgt_lcoe = calculate_ng_lcoe(annual_demand, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
-ccgt_lcoe = calculate_ng_lcoe(annual_demand, ccgt_efficiency, ccgt_capex_per_kw, ccgt_opex_per_kwh)
+ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
+ccgt_lcoe = calculate_ng_lcoe(annual_energy_used, ccgt_efficiency, ccgt_capex_per_kw, ccgt_opex_per_kwh)
 
 # Print results
 print("\nCost Analysis:")
@@ -194,13 +199,15 @@ print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
 print(f"\nNatural Gas System (CCGT):")
 print(f"LCOE: ${ccgt_lcoe * usd_eur_rate:.4f}/kWh")
 
-print(f"\nPure Solar System:")
+print(f"\nPure Solar System (with 24h battery storage):")
 print(f"Total cost: ${pure_solar_cost:,.0f}")
 print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
+print(f"Capacity Factor: {annual_energy_used / pure_solar_energy_generated:.2%}")
 
-print(f"\nGenerator Supported System:")
+print(f"\nGenerator Supported System (with 24h battery storage):")
 print(f"Total cost: ${supported_system_cost:,.0f}")
 print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
+print(f"Capacity Factor: {annual_energy_used / supported_solar_energy_generated:.2%}")
 
 ##--Add some plotting--##
 import matplotlib.pyplot as plt
@@ -211,7 +218,7 @@ scaled_daily_output = np.array(daily_output) * required_solar_array_with_generat
 
 # Create generator output data
 generator_output = np.zeros_like(scaled_daily_output)
-generator_output[:cutoff_day] = 2400 - scaled_daily_output[:cutoff_day]
+generator_output[:cutoff_day] = demand_in_MW * 24 - scaled_daily_output[:cutoff_day]
 generator_output = np.maximum(generator_output, 0)  # Ensure non-negative values
 
 # Create the plot
