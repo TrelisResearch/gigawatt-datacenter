@@ -4,13 +4,13 @@ from solar import analyze_solar_system
 from wind import analyze_wind_energy
 import config
 
-def solar_analysis(city, country, demand_gw, 
-                   solar_cost, wind_cost, battery_cost, 
-                   solar_efficiency, solar_density,
-                   ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
-                   ccgt_efficiency, ccgt_capex, ccgt_opex,
-                   project_lifetime, solar_battery_hours, wind_battery_hours,
-                   cutoff_day, hybrid_threshold):
+def analyze_energy_systems(city, country, demand_gw, 
+                           solar_cost, wind_cost, battery_cost, 
+                           solar_efficiency, solar_density,
+                           ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
+                           ccgt_efficiency, ccgt_capex, ccgt_opex,
+                           project_lifetime, solar_battery_hours, wind_battery_hours,
+                           cutoff_day, hybrid_threshold):
     
     # Update config values
     config.SOLAR_COST_PER_KW = solar_cost
@@ -34,114 +34,78 @@ def solar_analysis(city, country, demand_gw,
 
     demand_kw = demand_gw * 1e6
     daily_usage = demand_kw * 24
-    results = analyze_solar_system(city, country, demand_kw, daily_usage)
+
+    # Solar analysis
+    solar_results = analyze_solar_system(city, country, demand_kw, daily_usage)
     
-    output_text = f"""
+    solar_output_text = f"""
     Solar + Gas System Results:
-    LCOE: ${results['lcoe']:.4f}/kWh
-    Solar Fraction: {results['solar_fraction']:.2%}
-    Gas Fraction: {results['gas_fraction']:.2%}
-    Solar Capacity Factor: {results['capacity_factor']:.2%}
-    Solar Area: {results['solar_area_km2']:.2f} km² ({results['solar_area_percentage']:.2f}% of Ireland)
-    Solar Capacity: {results['solar_capacity_gw']:.2f} GW
-    Gas Capacity: {results['gas_capacity_gw']:.2f} GW
-    Capex per kW: ${results['capex_per_kw']} $/kW
-    Total Capex: ${results['total_capex']:.2f} million
+    LCOE: ${solar_results['lcoe']:.4f}/kWh
+    Solar Fraction: {solar_results['solar_fraction']:.2%}
+    Gas Fraction: {solar_results['gas_fraction']:.2%}
+    Solar Capacity Factor: {solar_results['capacity_factor']:.2%}
+    Solar Area: {solar_results['solar_area_km2']:.2f} km² ({solar_results['solar_area_percentage']:.2f}% of Ireland)
+    Solar Capacity: {solar_results['solar_capacity_gw']:.2f} GW
+    Gas Capacity: {solar_results['gas_capacity_gw']:.2f} GW
+    Capex per kW: ${solar_results['capex_per_kw']} $/kW
+    Total Capex: ${solar_results['total_capex']:.2f} million
     """
     
-    # Create energy output plot
-    energy_data = results['energy_output_data']
-    energy_fig = go.Figure()
-    energy_fig.add_trace(go.Bar(x=list(range(len(energy_data['solar_output']))), 
-                                y=energy_data['solar_output'], 
-                                name='Solar Output', 
-                                marker_color='yellow'))
-    energy_fig.add_trace(go.Bar(x=list(range(len(energy_data['gas_output']))), 
-                                y=energy_data['gas_output'], 
-                                name='Generator Output', 
-                                marker_color='gray'))
-    energy_fig.update_layout(title=f'Daily Energy Output in {city}: Solar vs Gas',
-                             xaxis_title='Days (sorted by solar output)',
-                             yaxis_title='Energy Output (kWh)',
-                             barmode='stack')
+    solar_energy_fig = go.Figure()
+    solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_output_data']['solar_output']))), 
+                                      y=solar_results['energy_output_data']['solar_output'], 
+                                      name='Solar Output', 
+                                      marker_color='yellow'))
+    solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_output_data']['gas_output']))), 
+                                      y=solar_results['energy_output_data']['gas_output'], 
+                                      name='Generator Output', 
+                                      marker_color='gray'))
+    solar_energy_fig.update_layout(title=f'Daily Energy Output in {city}: Solar vs Gas',
+                                   xaxis_title='Days (sorted by solar output)',
+                                   yaxis_title='Energy Output (kWh)',
+                                   barmode='stack')
 
-    # Create capex breakdown plot
-    capex_data = results['capex_breakdown_data']
-    capex_fig = go.Figure(data=[go.Pie(labels=capex_data['components'], 
-                                       values=capex_data['values'], 
-                                       hole=.3)])
-    capex_fig.update_layout(title=f'Capex Breakdown for Solar + Gas System in {city} ($ million)')
+    solar_capex_fig = go.Figure(data=[go.Pie(labels=solar_results['capex_breakdown_data']['components'], 
+                                             values=solar_results['capex_breakdown_data']['values'], 
+                                             hole=.3)])
+    solar_capex_fig.update_layout(title=f'Capex Breakdown for Solar + Gas System in {city} ($ million)')
 
-    return output_text, energy_fig, capex_fig
-
-def wind_analysis(city, country, demand_gw, 
-                  solar_cost, wind_cost, battery_cost, 
-                  solar_efficiency, solar_density,
-                  ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
-                  ccgt_efficiency, ccgt_capex, ccgt_opex,
-                  project_lifetime, solar_battery_hours, wind_battery_hours,
-                  cutoff_day, hybrid_threshold):
+    # Wind analysis
+    wind_results = analyze_wind_energy(city, country, daily_usage, demand_kw, cutoff_day)
     
-    # Update config values (same as in solar_analysis)
-    config.SOLAR_COST_PER_KW = solar_cost
-    config.WIND_COST_PER_KW = wind_cost
-    config.BATTERY_COST_PER_KWH = battery_cost
-    config.SOLAR_PANEL_EFFICIENCY = solar_efficiency
-    config.SOLAR_PANEL_DENSITY = solar_density
-    config.NG_PRICE_PER_MMBTU = ng_price
-    config.NG_PRICE_PER_KWH = ng_price / 293.07
-    config.OCGT_EFFICIENCY = ocgt_efficiency
-    config.OCGT_CAPEX_PER_KW = ocgt_capex
-    config.OCGT_OPEX_PER_KWH = ocgt_opex
-    config.CCGT_EFFICIENCY = ccgt_efficiency
-    config.CCGT_CAPEX_PER_KW = ccgt_capex
-    config.CCGT_OPEX_PER_KWH = ccgt_opex
-    config.PROJECT_LIFETIME = project_lifetime
-    config.SOLAR_BATTERY_STORAGE_HOURS = solar_battery_hours
-    config.WIND_BATTERY_STORAGE_HOURS = wind_battery_hours
-    config.CUTOFF_DAY = cutoff_day
-    config.HYBRID_LCOE_THRESHOLD = hybrid_threshold
-
-    demand_kw = demand_gw * 1e6
-    daily_usage = demand_kw * 24
-    results = analyze_wind_energy(city, country, daily_usage, demand_kw, cutoff_day)
-    
-    output_text = f"""
+    wind_output_text = f"""
     Wind + Gas System Results:
-    LCOE: ${results['lcoe']:.4f}/kWh
-    Wind Fraction: {results['wind_fraction']:.2%}
-    Gas Fraction: {results['generator_fraction']:.2%}
-    Wind Capacity Factor: {results['capacity_factor']:.2%}
-    Wind Capacity: {results['wind_capacity_gw']:.2f} GW
-    Gas Capacity: {results['generator_capacity_gw']:.2f} GW
-    Capex per kW: ${results['capex_per_kw']} $/kW
-    Total Capex: ${results['total_capex']:.2f} million
+    LCOE: ${wind_results['lcoe']:.4f}/kWh
+    Wind Fraction: {wind_results['wind_fraction']:.2%}
+    Gas Fraction: {wind_results['generator_fraction']:.2%}
+    Wind Capacity Factor: {wind_results['capacity_factor']:.2%}
+    Wind Capacity: {wind_results['wind_capacity_gw']:.2f} GW
+    Gas Capacity: {wind_results['generator_capacity_gw']:.2f} GW
+    Capex per kW: ${wind_results['capex_per_kw']} $/kW
+    Total Capex: ${wind_results['total_capex']:.2f} million
     """
     
-    # Create energy output plot
-    energy_data = results['energy_output_data']
-    energy_fig = go.Figure()
-    energy_fig.add_trace(go.Bar(x=list(range(len(energy_data['wind_output']))), 
-                                y=energy_data['wind_output'], 
-                                name='Wind Output', 
-                                marker_color='blue'))
-    energy_fig.add_trace(go.Bar(x=list(range(len(energy_data['generator_output']))), 
-                                y=energy_data['generator_output'], 
-                                name='Generator Output', 
-                                marker_color='gray'))
-    energy_fig.update_layout(title=f'Daily Energy Output in {city}: Wind vs Gas',
-                             xaxis_title='Days (sorted by wind output)',
-                             yaxis_title='Energy Output (kWh)',
-                             barmode='stack')
+    wind_energy_fig = go.Figure()
+    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_output_data']['wind_output']))), 
+                                     y=wind_results['energy_output_data']['wind_output'], 
+                                     name='Wind Output', 
+                                     marker_color='blue'))
+    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_output_data']['generator_output']))), 
+                                     y=wind_results['energy_output_data']['generator_output'], 
+                                     name='Generator Output', 
+                                     marker_color='gray'))
+    wind_energy_fig.update_layout(title=f'Daily Energy Output in {city}: Wind vs Gas',
+                                  xaxis_title='Days (sorted by wind output)',
+                                  yaxis_title='Energy Output (kWh)',
+                                  barmode='stack')
 
-    # Create capex breakdown plot
-    capex_data = results['capex_breakdown_data']
-    capex_fig = go.Figure(data=[go.Pie(labels=capex_data['components'], 
-                                       values=capex_data['values'], 
-                                       hole=.3)])
-    capex_fig.update_layout(title=f'Capex Breakdown for Wind + Gas System in {city} ($ million)')
+    wind_capex_fig = go.Figure(data=[go.Pie(labels=wind_results['capex_breakdown_data']['components'], 
+                                            values=wind_results['capex_breakdown_data']['values'], 
+                                            hole=.3)])
+    wind_capex_fig.update_layout(title=f'Capex Breakdown for Wind + Gas System in {city} ($ million)')
 
-    return output_text, energy_fig, capex_fig
+    return (solar_output_text, solar_energy_fig, solar_capex_fig,
+            wind_output_text, wind_energy_fig, wind_capex_fig)
 
 with gr.Blocks() as iface:
     gr.Markdown("# Solar/Wind + Gas Energy System Analysis")
@@ -193,7 +157,7 @@ with gr.Blocks() as iface:
                 hybrid_threshold = gr.Slider(minimum=0.05, maximum=0.3, value=config.HYBRID_LCOE_THRESHOLD, label="Hybrid LCOE Threshold", info="If hybrid solar + wind is not this fraction cheaper than wind or solar alone, defaults to the cheaper of wind OR solar.")
 
     submit_button.click(
-        fn=solar_analysis,
+        fn=analyze_energy_systems,
         inputs=[
             city, country, demand_gw,
             solar_cost, wind_cost, battery_cost,
@@ -203,21 +167,10 @@ with gr.Blocks() as iface:
             project_lifetime, solar_battery_hours, wind_battery_hours,
             cutoff_day, hybrid_threshold
         ],
-        outputs=[solar_results, solar_energy_output, solar_capex_breakdown]
+        outputs=[
+            solar_results, solar_energy_output, solar_capex_breakdown,
+            wind_results, wind_energy_output, wind_capex_breakdown
+        ]
     )
 
-    submit_button.click(
-        fn=wind_analysis,
-        inputs=[
-            city, country, demand_gw,
-            solar_cost, wind_cost, battery_cost,
-            solar_efficiency, solar_density,
-            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
-            ccgt_efficiency, ccgt_capex, ccgt_opex,
-            project_lifetime, solar_battery_hours, wind_battery_hours,
-            cutoff_day, hybrid_threshold
-        ],
-        outputs=[wind_results, wind_energy_output, wind_capex_breakdown]
-    )
-
-    iface.launch()
+iface.launch()
