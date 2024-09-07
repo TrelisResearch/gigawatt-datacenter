@@ -91,7 +91,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                       marker_color='yellow'))
     solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_output_data']['gas_output']))), 
                                       y=solar_results['energy_output_data']['gas_output'], 
-                                      name='Generator Output', 
+                                      name='Gas Output', 
                                       marker_color='gray'))
     solar_energy_fig.update_layout(title=f'Daily Energy Output in {lat}, {lon}: Solar vs Gas',
                                    xaxis_title='Days (sorted by solar output)',
@@ -110,10 +110,10 @@ def analyze_energy_systems(lat, lon, demand_gw,
     Wind + Gas System Results:
     LCOE: ${wind_results['lcoe']:.4f}/kWh
     Wind Fraction: {wind_results['wind_fraction']:.2%}
-    Gas Fraction: {wind_results['generator_fraction']:.2%}
+    Gas Fraction: {wind_results['gas_fraction']:.2%}
     Wind Capacity Factor: {wind_results['capacity_factor']:.2%}
     Wind Capacity: {wind_results['wind_capacity_gw']:.2f} GW
-    Gas Capacity: {wind_results['generator_capacity_gw']:.2f} GW
+    Gas Capacity: {wind_results['gas_capacity_gw']:.2f} GW
     Capex per kW: ${wind_results['capex_per_kw']} $/kW
     Total Capex: ${wind_results['total_capex']:.2f} million
     """
@@ -123,9 +123,9 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                      y=wind_results['energy_output_data']['wind_output'], 
                                      name='Wind Output', 
                                      marker_color='blue'))
-    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_output_data']['generator_output']))), 
-                                     y=wind_results['energy_output_data']['generator_output'], 
-                                     name='Generator Output', 
+    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_output_data']['gas_output']))), 
+                                     y=wind_results['energy_output_data']['gas_output'], 
+                                     name='Gas Output', 
                                      marker_color='gray'))
     wind_energy_fig.update_layout(title=f'Daily Energy Output in {lat}, {lon}: Wind vs Gas',
                                   xaxis_title='Days (sorted by wind output)',
@@ -183,9 +183,9 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                        y=hybrid_results['energy_output_data']['wind_output'], 
                                        name='Wind Output', 
                                        marker_color='skyblue'))
-    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['generator_output']))), 
-                                       y=hybrid_results['energy_output_data']['generator_output'], 
-                                       name='Generator Output', 
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['gas_output']))), 
+                                       y=hybrid_results['energy_output_data']['gas_output'], 
+                                       name='Gas Output', 
                                        marker_color='gray'))
     hybrid_energy_fig.update_layout(title=f'Daily Energy Output in {lat}, {lon}: Solar, Wind, and Gas',
                                     xaxis_title='Days (sorted by combined output)',
