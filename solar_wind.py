@@ -13,12 +13,9 @@ def simulate_wind_output(weather_data):
 def calculate_wind_daily_output(wind_output):
     return wind_output.resample('D').sum()  # Daily sum of kWh per kW of capacity
 
-def analyze_hybrid_system(city, country, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
-    coordinates = get_coordinates(city, country)
-    if coordinates is None:
-        raise ValueError(f"Could not find coordinates for {city}, {country}")
-    
-    latitude, longitude = coordinates
+def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
+    # Remove the get_coordinates function call
+    print(f"Analyzing hybrid system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     # Simulate solar output
     solar_output = simulate_solar_output(latitude, longitude)
@@ -104,7 +101,7 @@ def analyze_hybrid_system(city, country, demand_in_kw, daily_usage, cutoff_day=C
                    wind_capacity * WIND_COST_PER_KW +
                    battery_capacity * BATTERY_COST_PER_KWH +
                    demand_in_kw * OCGT_CAPEX_PER_KW) / 1e6  # Convert to millions
-    print(f"\nBest result ({system_type}):")
+    print(f"\nBest result ({system_type}) for coordinates ({latitude}, {longitude}):")
     print(f"Gamma: {gamma:.4f}")
     print(f"LCOE: ${lcoe:.4f}/kWh")
     print(f"Solar capacity factor: {solar_capacity_factor:.4f}")
@@ -146,14 +143,16 @@ def analyze_hybrid_system(city, country, demand_in_kw, daily_usage, cutoff_day=C
         "capex_per_kw": capex_per_kw,
         "energy_output_data": energy_output_data,
         "capex_breakdown_data": capex_breakdown_data,
-        "total_capex": total_capex
+        "total_capex": total_capex,
+        "latitude": latitude,
+        "longitude": longitude
     }
 
 if __name__ == "__main__":
-    city = "Naples"
-    country = "United States"
+    latitude = 26.14
+    longitude = -81.79
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
     
-    result = analyze_hybrid_system(city, country, demand_in_kw, daily_usage)
+    result = analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage)
     # print(result)

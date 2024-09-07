@@ -26,20 +26,15 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     
     return df
 
-def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUTOFF_DAY, start_date="2022-01-01", end_date="2022-12-31"):
-    # Get coordinates
-    coordinates = get_coordinates(city, country)
-    if coordinates is None:
-        print(f"Could not find coordinates for {city}, {country}")
-        return
-    
-    latitude, longitude = coordinates
+def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=CUTOFF_DAY, start_date="2022-01-01", end_date="2022-12-31"):
+    # Remove the get_coordinates function call
+    print(f"Analyzing wind energy for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     # Fetch weather data
     weather = fetch_open_meteo_data(latitude, longitude, start_date, end_date)
 
     # Print average wind speed
-    print(f"Average wind speed for {city}: {weather[('wind_speed', 10)].mean():.2f} m/s")
+    print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather[('wind_speed', 10)].mean():.2f} m/s")
 
     # Specification of wind turbine
     turbine = WindTurbine(turbine_type='E-126/7500', hub_height=135)
@@ -55,7 +50,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
     sorted_daily_output = daily_output.sort_values()
 
     # Print some statistics about the daily output
-    print(f"Daily output statistics for {city}:")
+    print(f"Daily output statistics for coordinates ({latitude}, {longitude}):")
     print(sorted_daily_output.describe())
 
     # Calculate required wind turbines
@@ -77,8 +72,8 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
     total_capacity = turbine.nominal_power * required_turbines_with_generators / 1e3  # Total capacity in kW
     capacity_factor = total_energy_output / (total_capacity * 24 * 365)
 
-    # Print results
-    print(f'\nWind Turbine Requirements for {city}:')
+    # Update print statements to use coordinates instead of city
+    print(f'\nWind Turbine Requirements for coordinates ({latitude}, {longitude}):')
     print(f'Turbine Type: {turbine.turbine_type}')
     print(f'Rated Power: {turbine.nominal_power/1e3:.2f} kW')
     print(f'Average Capacity Factor (with generators): {capacity_factor:.2%}')
@@ -175,6 +170,10 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
     print(f"Wind Capacity Factor: {supported_wind_capacity_factor:.2%}")
     print(f"Fraction of energy from wind: {supported_wind_energy_used / annual_energy_used:.2%}")
 
+    # Update plot functions to use coordinates instead of city
+    plot_energy_output(sorted_daily_output, required_turbines_with_generators, daily_usage, f"({latitude}, {longitude})")
+    plot_capex_breakdown(supported_wind_capacity, battery_capacity, generator_capacity, f"({latitude}, {longitude})")
+
     results = {
         "lcoe": supported_system_lcoe,
         "wind_fraction": supported_wind_energy_used / annual_energy_used,
@@ -200,7 +199,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
 
     return results
 
-def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, city):
+def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, location):
     scaled_daily_output = sorted_daily_output * required_turbines * 1000
     generator_output = np.maximum(daily_usage - scaled_daily_output, 0)
 
@@ -212,14 +211,14 @@ def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, city
 
     ax.set_xlabel('Days (sorted by wind output)')
     ax.set_ylabel('Energy Output (kWh)')
-    ax.set_title(f'Daily Energy Output in {city}: Wind vs Generator')
+    ax.set_title(f'Daily Energy Output in {location}: Wind vs Generator')
     ax.legend()
     ax.grid(True, linestyle='--', alpha=0.7)
 
     plt.tight_layout()
     plt.show()
 
-def plot_capex_breakdown(wind_capacity, battery_capacity, generator_capacity, city):
+def plot_capex_breakdown(wind_capacity, battery_capacity, generator_capacity, location):
     wind_capex = wind_capacity * WIND_COST_PER_KW
     battery_capex = battery_capacity * BATTERY_COST_PER_KWH
     generator_capex = generator_capacity * OCGT_CAPEX_PER_KW
@@ -232,7 +231,7 @@ def plot_capex_breakdown(wind_capacity, battery_capacity, generator_capacity, ci
 
     wedges, texts, autotexts = ax.pie(capex_components, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
 
-    ax.set_title(f'Capex Breakdown for Wind + Generator System in {city}')
+    ax.set_title(f'Capex Breakdown for Wind + Generator System in {location}')
 
     ax.legend(wedges, labels,
               title="Components",
@@ -246,9 +245,9 @@ def plot_capex_breakdown(wind_capacity, battery_capacity, generator_capacity, ci
     plt.show()
 
 if __name__ == "__main__":
-    city = "San Antonio"
-    country = "United States"
+    latitude = 29.22
+    longitude = -98.75
     daily_usage = 24000000  # Daily usage in kWh (24 GWh)
     demand_in_kw = 1000000  # Demand in kW (1 GW)
     
-    analyze_wind_energy(city, country, daily_usage, demand_in_kw)
+    analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw)

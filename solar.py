@@ -79,17 +79,9 @@ def calculate_solar_area(capacity_kw):
     percentage_of_ireland = (area_km2 / ireland_area_km2) * 100
     return area_km2, percentage_of_ireland
 
-def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
-    locations = {
-        'Cork': {'latitude': 51.89, 'longitude': -8.47, 'name': 'Cork'},
-        'Waterford': {'latitude': 52.26, 'longitude': -7.12, 'name': 'Waterford'},
-        'Dublin': {'latitude': 53.35, 'longitude': -6.26, 'name': 'Dublin'},
-        'San Antonio': {'latitude': 29.22, 'longitude': -98.75, 'name': 'San Antonio'},
-        'Tuscon': {'latitude': 32.43, 'longitude': -111.1, 'name': 'Tuscon'}
-    }
-
-    latitude, longitude, city = get_location_data(city_name, country_name, locations)
-    print(f"Coordinates for {city_name}: Latitude {latitude}, Longitude {longitude}")
+def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
+    # Remove the get_location_data function call
+    print(f"Analyzing solar system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     ac = simulate_solar_output(latitude, longitude)
     daily_output = calculate_daily_output(ac)
@@ -169,9 +161,9 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     }
 
 if __name__ == "__main__":
-    city = "Waterford"
-    country = "Ireland"
+    latitude = 52.26
+    longitude = -7.12
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
     
-    analyze_solar_system(city, country, demand_in_kw, daily_usage)
+    analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage)

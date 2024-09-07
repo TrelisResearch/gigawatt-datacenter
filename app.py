@@ -5,8 +5,33 @@ from wind import analyze_wind_energy
 from ccgt import analyze_ccgt
 from solar_wind import analyze_hybrid_system
 import config
+import geopy.geocoders
+from geopy.geocoders import Nominatim
 
-def analyze_energy_systems(city, country, demand_gw, 
+def get_coordinates(location):
+    geolocator = Nominatim(user_agent="SolarScript/1.0")
+    try:
+        location_data = geolocator.geocode(location, exactly_one=True, timeout=10)
+        if location_data:
+            return location_data.latitude, location_data.longitude
+        else:
+            return None
+    except Exception as e:
+        print(f"Error in geocoding: {e}")
+        return None
+
+def validate_coordinates(lat, lon):
+    try:
+        lat = float(lat)
+        lon = float(lon)
+        if -90 <= lat <= 90 and -180 <= lon <= 180:
+            return lat, lon
+        else:
+            return None
+    except ValueError:
+        return None
+
+def analyze_energy_systems(lat, lon, demand_gw, 
                            solar_cost, wind_cost, battery_cost, 
                            solar_efficiency, solar_density,
                            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
@@ -44,7 +69,7 @@ def analyze_energy_systems(city, country, demand_gw,
     daily_usage = demand_kw * 24
 
     # Solar analysis
-    solar_results = analyze_solar_system(city, country, demand_kw, daily_usage)
+    solar_results = analyze_solar_system(lat, lon, demand_kw, daily_usage)
     
     solar_output_text = f"""
     Solar + Gas System Results:
@@ -68,7 +93,7 @@ def analyze_energy_systems(city, country, demand_gw,
                                       y=solar_results['energy_output_data']['gas_output'], 
                                       name='Generator Output', 
                                       marker_color='gray'))
-    solar_energy_fig.update_layout(title=f'Daily Energy Output in {city}: Solar vs Gas',
+    solar_energy_fig.update_layout(title=f'Daily Energy Output in {lat}, {lon}: Solar vs Gas',
                                    xaxis_title='Days (sorted by solar output)',
                                    yaxis_title='Energy Output (kWh)',
                                    barmode='stack')
@@ -76,10 +101,10 @@ def analyze_energy_systems(city, country, demand_gw,
     solar_capex_fig = go.Figure(data=[go.Pie(labels=solar_results['capex_breakdown_data']['components'], 
                                              values=solar_results['capex_breakdown_data']['values'], 
                                              hole=.3)])
-    solar_capex_fig.update_layout(title=f'Capex Breakdown for Solar + Gas System in {city} ($ million)')
+    solar_capex_fig.update_layout(title=f'Capex Breakdown for Solar + Gas System in {lat}, {lon} ($ million)')
 
     # Wind analysis
-    wind_results = analyze_wind_energy(city, country, daily_usage, demand_kw, cutoff_day)
+    wind_results = analyze_wind_energy(lat, lon, daily_usage, demand_kw, cutoff_day)
     
     wind_output_text = f"""
     Wind + Gas System Results:
@@ -102,7 +127,7 @@ def analyze_energy_systems(city, country, demand_gw,
                                      y=wind_results['energy_output_data']['generator_output'], 
                                      name='Generator Output', 
                                      marker_color='gray'))
-    wind_energy_fig.update_layout(title=f'Daily Energy Output in {city}: Wind vs Gas',
+    wind_energy_fig.update_layout(title=f'Daily Energy Output in {lat}, {lon}: Wind vs Gas',
                                   xaxis_title='Days (sorted by wind output)',
                                   yaxis_title='Energy Output (kWh)',
                                   barmode='stack')
@@ -110,7 +135,7 @@ def analyze_energy_systems(city, country, demand_gw,
     wind_capex_fig = go.Figure(data=[go.Pie(labels=wind_results['capex_breakdown_data']['components'], 
                                             values=wind_results['capex_breakdown_data']['values'], 
                                             hole=.3)])
-    wind_capex_fig.update_layout(title=f'Capex Breakdown for Wind + Gas System in {city} ($ million)')
+    wind_capex_fig.update_layout(title=f'Capex Breakdown for Wind + Gas System in {lat}, {lon} ($ million)')
 
     # CCGT analysis
     ccgt_results = analyze_ccgt(daily_usage, demand_kw)
@@ -131,7 +156,7 @@ def analyze_energy_systems(city, country, demand_gw,
     ccgt_cost_fig.update_layout(title='Annual Cost Breakdown for CCGT')
 
     # Hybrid system analysis
-    hybrid_results = analyze_hybrid_system(city, country, demand_kw, daily_usage, cutoff_day)
+    hybrid_results = analyze_hybrid_system(lat, lon, demand_kw, daily_usage, cutoff_day)
     
     hybrid_output_text = f"""
     Wind + Gas System Results:
@@ -162,7 +187,7 @@ def analyze_energy_systems(city, country, demand_gw,
                                        y=hybrid_results['energy_output_data']['generator_output'], 
                                        name='Generator Output', 
                                        marker_color='gray'))
-    hybrid_energy_fig.update_layout(title=f'Daily Energy Output in {city}: Solar, Wind, and Gas',
+    hybrid_energy_fig.update_layout(title=f'Daily Energy Output in {lat}, {lon}: Solar, Wind, and Gas',
                                     xaxis_title='Days (sorted by combined output)',
                                     yaxis_title='Energy Output (kWh)',
                                     barmode='stack')
@@ -170,52 +195,98 @@ def analyze_energy_systems(city, country, demand_gw,
     hybrid_capex_fig = go.Figure(data=[go.Pie(labels=hybrid_results['capex_breakdown_data']['components'], 
                                               values=hybrid_results['capex_breakdown_data']['values'], 
                                               hole=.3)])
-    hybrid_capex_fig.update_layout(title=f'Capex Breakdown for {hybrid_results["system_type"]} System in {city} ($ million)')
+    hybrid_capex_fig.update_layout(title=f'Capex Breakdown for {hybrid_results["system_type"]} System in {lat}, {lon} ($ million)')
 
     return (solar_output_text, solar_energy_fig, solar_capex_fig,
             wind_output_text, wind_energy_fig, wind_capex_fig,
             ccgt_output_text, ccgt_cost_fig,
             hybrid_output_text, hybrid_energy_fig, hybrid_capex_fig)
 
+def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *args):
+    if input_type == "Location":
+        coordinates = get_coordinates(location)
+        if coordinates:
+            lat, lon = coordinates
+            print(f"Coordinates found for location: {lat}, {lon}")
+        else:
+            return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None
+    elif input_type == "Coordinates":
+        coordinates = validate_coordinates(lat, lon)
+        if coordinates:
+            lat, lon = coordinates
+            print(f"Using provided coordinates: {lat}, {lon}")
+        else:
+            return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None
+    else:
+        return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None
+    
+    return analyze_energy_systems(lat, lon, demand_gw, *args)
+
+def update_visibility(choice):
+    return (
+        gr.Column(visible=(choice == "Location")),
+        gr.Column(visible=(choice == "Coordinates"))
+    )
+
 with gr.Blocks() as iface:
     gr.Markdown("# Solar/Wind + Gas Energy System Analysis")
     gr.Markdown("Analyze a solar or wind energy system with gas backup for a given location and demand.")
     
+    input_type = gr.Radio(["Location", "Coordinates"], label="Input Method", value="Location")
+    
+    with gr.Column(visible=True) as location_column:
+        location = gr.Textbox(
+            label="Location", 
+            value="Waterford, Ireland", 
+            info="Enter a specific location (e.g., 'New York, USA' or 'Berlin, Germany')"
+        )
+    
+    with gr.Column(visible=False) as coordinates_column:
+        with gr.Row():
+            latitude = gr.Textbox(
+                label="Latitude",
+                placeholder="e.g., 52.2593",
+                info="Enter latitude (between -90 and 90)"
+            )
+            longitude = gr.Textbox(
+                label="Longitude",
+                placeholder="e.g., -7.1101",
+                info="Enter longitude (between -180 and 180)"
+            )
+
     with gr.Row():
-        city = gr.Textbox(label="City", value="Waterford")
-        country = gr.Textbox(label="Country", value="Ireland")
         demand_gw = gr.Slider(minimum=0.1, maximum=10, value=1, label="Demand (GW)")
     
     submit_button = gr.Button("Submit")
 
-    with gr.Tabs():
-        with gr.TabItem("Solar Analysis Results"):
+    with gr.Tabs() as tabs:
+        with gr.TabItem("Solar Analysis Results", id="solar_tab"):
             solar_results = gr.Textbox(label="Results")
             solar_energy_output = gr.Plot(label="Energy Output")
             solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.TabItem("Wind Analysis Results"):
+        with gr.TabItem("Wind Analysis Results", id="wind_tab"):
             wind_results = gr.Textbox(label="Results")
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.TabItem("Hybrid System Analysis Results"):
+        with gr.TabItem("Hybrid System Analysis Results", id="hybrid_tab"):
             hybrid_results = gr.Textbox(label="Results")
             hybrid_energy_output = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
 
-        with gr.TabItem("CCGT Analysis Results"):
+        with gr.TabItem("CCGT Analysis Results", id="ccgt_tab"):
             ccgt_results = gr.Textbox(label="Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
-        
-        with gr.TabItem("Advanced Settings"):
+
+        with gr.TabItem("Advanced Settings", id="advanced_tab"):
             with gr.Column():
                 gr.Markdown("### Cost Parameters")
+                solar_cost = gr.Slider(minimum=100, maximum=1000, value=config.SOLAR_COST_PER_KW, label="Solar Cost ($/kW)", info="Cost per kW of solar installation")
                 wind_cost = gr.Slider(minimum=500, maximum=2000, value=config.WIND_COST_PER_KW, label="Wind Cost ($/kW)", info="Cost per kW of wind installation")
                 battery_cost = gr.Slider(minimum=100, maximum=500, value=config.BATTERY_COST_PER_KWH, label="Battery Cost ($/kWh)", info="Cost per kWh of battery storage")
 
                 gr.Markdown("### Solar Parameters")
-                solar_cost = gr.Slider(minimum=100, maximum=1000, value=config.SOLAR_COST_PER_KW, label="Solar Cost ($/kW)", info="Cost per kW of solar installation")
                 solar_efficiency = gr.Slider(minimum=0.1, maximum=0.3, value=config.SOLAR_PANEL_EFFICIENCY, label="Solar Panel Efficiency", info="Efficiency of solar panels")
                 solar_density = gr.Slider(minimum=0.2, maximum=0.6, value=config.SOLAR_PANEL_DENSITY, label="Solar Panel Density", info="m² of panel area per m² of land")
                 solar_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.SOLAR_BATTERY_STORAGE_HOURS, label="Solar Battery Storage (hours)", info="Hours of battery storage for solar system")
@@ -241,28 +312,17 @@ with gr.Blocks() as iface:
                 debt_ratio = gr.Slider(minimum=10, maximum=90, value=config.DEBT_RATIO * 100, label="Debt Ratio (%)", info="Proportion of financing from debt as a percentage")
                 tax_rate = gr.Slider(minimum=10, maximum=40, value=config.TAX_RATE * 100, label="Tax Rate (%)", info="Corporate tax rate as a percentage")
 
-    submit_button.click(
-        fn=analyze_energy_systems,
-        inputs=[
-            city, country, demand_gw,
-            solar_cost, wind_cost, battery_cost,
-            solar_efficiency, solar_density,
-            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
-            ccgt_efficiency, ccgt_capex, ccgt_opex,
-            project_lifetime, solar_battery_hours, wind_battery_hours,
-            cutoff_day, hybrid_threshold,
-            equity_premium, debt_premium, debt_ratio, tax_rate
-        ],
-        outputs=[
-            solar_results, solar_energy_output, solar_capex_breakdown,
-            wind_results, wind_energy_output, wind_capex_breakdown,
-            ccgt_results, ccgt_cost_breakdown
-        ]
+    # Connect the input_type radio button to update visibility
+    input_type.change(
+        fn=update_visibility,
+        inputs=input_type,
+        outputs=[location_column, coordinates_column]
     )
+        # In your Gradio interface setup:
     submit_button.click(
-        fn=analyze_energy_systems,
+        fn=analyze_energy_systems_wrapper,
         inputs=[
-            city, country, demand_gw,
+            input_type, location, latitude, longitude, demand_gw,
             solar_cost, wind_cost, battery_cost,
             solar_efficiency, solar_density,
             ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
