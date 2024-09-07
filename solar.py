@@ -87,10 +87,10 @@ print('Required Solar Array (with generators): ', required_solar_array_with_gene
 
 
 # Calculate generator input (50 worst days at full demand, minus solar contribution)
-generator_input = (50 * demand_in_MW * 24) - sum(daily_output[:cutoff_day])*required_solar_array_with_generators
+generator_energy = (50 * demand_in_MW * 24) - sum(daily_output[:cutoff_day])*required_solar_array_with_generators
 
 # Calculate fraction handled by generators
-generator_fraction = generator_input / annual_demand
+generator_fraction = generator_energy / annual_demand
 
 print('Fraction handled by generators: ', generator_fraction)
 
@@ -155,17 +155,21 @@ annual_energy_used = 365 * daily_usage  # in MWh
 
 # Calculate annual energy generated for solar systems
 pure_solar_energy_generated = sum(daily_output) * required_solar_array_no_generators  # in MWh
-supported_solar_energy_generated = sum(daily_output) * required_solar_array_with_generators + generator_input  # in MWh
+supported_solar_energy_generated = sum(daily_output) * required_solar_array_with_generators  # in MWh
+
+# Solar energy used is the minimum of generated and demanded
+pure_solar_energy_used = min(annual_energy_used, pure_solar_energy_generated)
+supported_solar_energy_used = min(annual_energy_used - generator_energy, supported_solar_energy_generated)
 
 # Calculate LCOE
-def calculate_lcoe(system_cost, annual_energy_used, annual_energy_generated, annual_generator_energy=0):
+def calculate_lcoe(system_cost, annual_energy_used, annual_generator_energy=0):
     annual_capital_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
     annual_generator_fuel_cost = annual_generator_energy * 1000 * (ng_price_per_kwh / ocgt_efficiency + ocgt_opex_per_kwh)
     total_annual_cost = annual_capital_cost + annual_generator_fuel_cost
     return total_annual_cost / (annual_energy_used * 1000)  # Convert MWh to kWh
 
-pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_energy_used, pure_solar_energy_generated)
-supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, supported_solar_energy_generated, generator_input)
+pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_energy_used)
+supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, generator_energy)
 
 # Natural Gas Case (CCGT and OCGT)
 def calculate_ng_lcoe(demand_mwh, efficiency, capex_per_kw, opex_per_kwh):
@@ -185,6 +189,20 @@ def calculate_ng_lcoe(demand_mwh, efficiency, capex_per_kw, opex_per_kwh):
 ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
 ccgt_lcoe = calculate_ng_lcoe(annual_energy_used, ccgt_efficiency, ccgt_capex_per_kw, ccgt_opex_per_kwh)
 
+# Calculate capex per kW of rated capacity
+def calculate_capex_per_kw(total_cost, rated_capacity_kw):
+    return total_cost / rated_capacity_kw
+
+# Pure solar case
+pure_solar_capex_per_kw = calculate_capex_per_kw(pure_solar_cost, demand_in_MW)
+
+# Generator supported case
+supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, demand_in_MW)
+
+# Natural gas cases (OCGT and CCGT)
+ocgt_capex_per_kw = ocgt_capex_per_kw
+ccgt_capex_per_kw = ccgt_capex_per_kw
+
 # Print results
 print("\nCost Analysis:")
 print(f"20-year Treasury rate: {rate_20y:.4f}")
@@ -195,19 +213,24 @@ usd_eur_rate = 1.1  # Assume 1 EUR = 1.1 USD
 
 print(f"\nNatural Gas System (OCGT):")
 print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
+print(f"Capex per kW: ${ocgt_capex_per_kw:.2f}/kW")
 
 print(f"\nNatural Gas System (CCGT):")
 print(f"LCOE: ${ccgt_lcoe * usd_eur_rate:.4f}/kWh")
+print(f"Capex per kW: ${ccgt_capex_per_kw:.2f}/kW")
 
 print(f"\nPure Solar System (with 24h battery storage):")
 print(f"Total cost: ${pure_solar_cost:,.0f}")
 print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
-print(f"Capacity Factor: {annual_energy_used / pure_solar_energy_generated:.2%}")
+print(f"Capex per kW: ${pure_solar_capex_per_kw:.2f}/kW")
+print(f"Solar Capacity Factor: {pure_solar_energy_used / pure_solar_energy_generated:.2%}")
 
 print(f"\nGenerator Supported System (with 24h battery storage):")
 print(f"Total cost: ${supported_system_cost:,.0f}")
 print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
-print(f"Capacity Factor: {annual_energy_used / supported_solar_energy_generated:.2%}")
+print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
+print(f"Solar Capacity Factor: {supported_solar_energy_used / supported_solar_energy_generated:.2%}")
+print(f"Fraction of energy from solar: {supported_solar_energy_used / annual_energy_used:.2%}")
 
 ##--Add some plotting--##
 import matplotlib.pyplot as plt
