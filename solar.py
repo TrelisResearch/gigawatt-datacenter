@@ -279,3 +279,34 @@ ax.grid(True, linestyle='--', alpha=0.7)
 # Show the plot
 plt.tight_layout()
 plt.show()
+
+# Prepare data for the capex breakdown chart for Solar + Generator case
+solar_capex = supported_solar_capacity * solar_cost_per_kw
+battery_capex = battery_capacity * battery_cost_per_kwh
+generator_capex = generator_capacity * generator_cost_per_kw
+
+capex_components = [solar_capex, battery_capex, generator_capex]
+labels = ['Solar Panels', 'Battery Storage', 'Generator']
+colors = ['yellow', 'lightblue', 'lightgray']
+
+# Create the pie chart
+fig, ax = plt.subplots(figsize=(10, 8))
+
+wedges, texts, autotexts = ax.pie(capex_components, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+
+# Customize the plot
+ax.set_title(f'Capex Breakdown for Solar + Generator System in {city_name}')
+
+# Add legend
+ax.legend(wedges, labels,
+          title="Components",
+          loc="center left",
+          bbox_to_anchor=(1, 0, 0.5, 1))
+
+# Add total capex value
+total_capex = sum(capex_components)
+plt.text(0.5, -0.1, f'Total Capex: ${total_capex:,.0f}', ha='center', transform=ax.transAxes)
+
+# Show the plot
+plt.tight_layout()
+plt.show()
