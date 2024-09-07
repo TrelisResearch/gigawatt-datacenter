@@ -10,11 +10,5 @@
         "src": "/(.*)",
         "dest": "app/app.py"
       }
-    ],
-    "functions": {
-      "app/app.py": {
-        "includeFiles": ["app/**"],
-        "excludeFiles": ["**/*.test.py", "**/__pycache__/**"]
-      }
-    }
-  }
+    ]
+}
