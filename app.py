@@ -44,7 +44,7 @@ def solar_analysis(city, country, demand_gw,
     Solar Area: {results['solar_area_km2']:.2f} km² ({results['solar_area_percentage']:.2f}% of Ireland)
     Solar Capacity: {results['solar_capacity_gw']:.2f} GW
     Gas Capacity: {results['gas_capacity_gw']:.2f} GW
-    Capex per kW: ${results['capex_per_kw']:.2f} million/kW
+    Capex per kW: ${results['capex_per_kw']} $/kW
     Total Capex: ${results['total_capex']:.2f} million
     """
     

@@ -98,7 +98,7 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
     def calculate_system_cost(wind_capacity, battery_capacity=0, generator_capacity=0):
         wind_cost = wind_capacity * WIND_COST_PER_KW
         battery_cost = battery_capacity * BATTERY_COST_PER_KWH
-        generator_cost = generator_capacity * GENERATOR_COST_PER_KW
+        generator_cost = generator_capacity * OCGT_CAPEX_PER_KW
         return wind_cost + battery_cost + generator_cost
 
     # Pure wind case
@@ -175,9 +175,35 @@ def analyze_wind_energy(city, country, daily_usage, demand_in_kw, cutoff_day=CUT
     print(f"Wind Capacity Factor: {supported_wind_capacity_factor:.2%}")
     print(f"Fraction of energy from wind: {supported_wind_energy_used / annual_energy_used:.2%}")
 
-    # Plotting
-    plot_energy_output(sorted_daily_output, required_turbines_with_generators, daily_usage, city)
-    plot_capex_breakdown(supported_wind_capacity, battery_capacity, generator_capacity, city)
+    # Instead of printing results, collect them in a dictionary
+    results = {
+        "lcoe": supported_system_lcoe,
+        "wind_fraction": supported_wind_energy_used / annual_energy_used,
+        "generator_fraction": generator_fraction,
+        "capacity_factor": capacity_factor,
+        "wind_capacity_gw": supported_wind_capacity / 1e6,
+        "generator_capacity_gw": generator_capacity / 1e6,
+        "capex_per_kw": supported_system_capex_per_kw,
+        "energy_output_data": {
+            'wind_output': sorted_daily_output * required_turbines_with_generators * 1000,
+            'generator_output': np.maximum(daily_usage - sorted_daily_output * required_turbines_with_generators * 1000, 0)
+        },
+        "capex_breakdown_data": {
+            'components': ['Wind Turbines', 'Battery Storage', 'Generator'],
+            'values': [
+                supported_wind_capacity * WIND_COST_PER_KW / 1e6,  # Convert to millions
+                battery_capacity * BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
+                generator_capacity * OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
+            ]
+        },
+        "total_capex": supported_system_cost / 1e6  # Convert to millions
+    }
+
+    # Remove or comment out the plotting functions
+    # plot_energy_output(sorted_daily_output, required_turbines_with_generators, daily_usage, city)
+    # plot_capex_breakdown(supported_wind_capacity, battery_capacity, generator_capacity, city)
+
+    return results
 
 def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, city):
     scaled_daily_output = sorted_daily_output * required_turbines * 1000
@@ -201,7 +227,7 @@ def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, city
 def plot_capex_breakdown(wind_capacity, battery_capacity, generator_capacity, city):
     wind_capex = wind_capacity * WIND_COST_PER_KW
     battery_capex = battery_capacity * BATTERY_COST_PER_KWH
-    generator_capex = generator_capacity * GENERATOR_COST_PER_KW
+    generator_capex = generator_capacity * OCGT_CAPEX_PER_KW
 
     capex_components = [wind_capex, battery_capex, generator_capex]
     labels = ['Wind Turbines', 'Battery Storage', 'Generator']

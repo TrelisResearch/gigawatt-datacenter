@@ -162,7 +162,7 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
         "solar_area_percentage": percentage,
         "solar_capacity_gw": required_solar_array_with_gass / 1e6,
         "gas_capacity_gw": demand_in_kw / 1e6,
-        "capex_per_kw": supported_system_capex_per_kw / 1e3,  # Convert to millions
+        "capex_per_kw": supported_system_capex_per_kw,
         "energy_output_data": energy_output_data,
         "capex_breakdown_data": capex_breakdown_data,
         "total_capex": supported_system_cost / 1e6  # Convert to millions
