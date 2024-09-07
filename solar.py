@@ -11,7 +11,7 @@ locations = {
     'Tuscon': {'latitude': 32.43, 'longitude': -111.1, 'name': 'Tuscon'}
 }
 
-city_name = 'San Antonio'  # Change this to 'Waterford' or 'Dublin' as needed
+city_name = 'Waterford'  # Change this to 'Waterford' or 'Dublin' as needed
 
 # Get the location information for the selected city
 latitude = locations[city_name]['latitude']
