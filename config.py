@@ -2,14 +2,13 @@
 SOLAR_COST_PER_KW = 350  # $/kW
 WIND_COST_PER_KW = 1300  # $/kW
 BATTERY_COST_PER_KWH = 250  # $/kWh
-GENERATOR_COST_PER_KW = 800  # $/kW
 
 # Solar parameters
 SOLAR_PANEL_EFFICIENCY = 0.2
 SOLAR_PANEL_DENSITY = 0.4 # m2 of area per m2 of panels
 
 # Natural Gas parameters
-NG_PRICE_PER_MMBTU = 20  # €/MMBtu (typical European price)
+NG_PRICE_PER_MMBTU = 20  # $/MMBtu (typical European price)
 NG_PRICE_PER_KWH = NG_PRICE_PER_MMBTU / 293.07  # Convert €/MMBtu to €/kWh
 
 # Open Cycle Gas Turbine (OCGT) parameters
@@ -30,7 +29,7 @@ SOLAR_BATTERY_STORAGE_HOURS = 24  # Hours of battery storage for pure solar syst
 WIND_BATTERY_STORAGE_HOURS = 12   # Hours of battery storage for pure wind system
 
 # System design parameters
-CUTOFF_DAY = 50  # Number of days the system should be able to handle without generator support
+CUTOFF_DAY = 50  # Number of days the system should be able to handle without gas support
 
 # Hybrid system threshold
 HYBRID_LCOE_THRESHOLD = 0.15  # 15% LCOE improvement threshold for hybriding

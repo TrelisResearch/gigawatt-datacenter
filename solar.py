@@ -1,19 +1,8 @@
 from config import *
 
 from pvlib import pvsystem, modelchain, location, iotools
-import pandas as pd
-import matplotlib.pyplot as plt
 import numpy as np
 from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
-
-# Constants
-SOLAR_COST_PER_KW = 550
-BATTERY_COST_PER_KWH = 250
-GENERATOR_COST_PER_KW = 800
-SOLAR_PANEL_EFFICIENCY = 0.2
-SOLAR_PANEL_DENSITY = 0.4
-PROJECT_LIFETIME = 20
-SOLAR_BATTERY_STORAGE_HOURS = 24  # Hours of battery storage for pure solar system
 
 def get_location_data(city_name, country_name, locations):
     if city_name in locations:
@@ -69,19 +58,19 @@ def calculate_daily_output(ac):
     return sorted(daily_output)
 
 def calculate_system_requirements(daily_output, daily_usage, demand_in_kw, cutoff_day):
-    required_solar_array_no_generators = round(daily_usage / (daily_output[0]))
-    required_solar_array_with_generators = round(daily_usage / (daily_output[cutoff_day:][0]))
-    generator_energy = ((50 * demand_in_kw * 24) - sum(daily_output[:cutoff_day])*required_solar_array_with_generators)
+    required_solar_array_no_gass = round(daily_usage / (daily_output[0]))
+    required_solar_array_with_gass = round(daily_usage / (daily_output[cutoff_day:][0]))
+    gas_energy = ((50 * demand_in_kw * 24) - sum(daily_output[:cutoff_day])*required_solar_array_with_gass)
     annual_demand = 365 * daily_usage
-    generator_fraction = generator_energy / annual_demand
+    gas_fraction = gas_energy / annual_demand
 
-    return required_solar_array_no_generators, required_solar_array_with_generators, generator_energy, generator_fraction
+    return required_solar_array_no_gass, required_solar_array_with_gass, gas_energy, gas_fraction
 
-def calculate_system_cost(solar_capacity, battery_capacity=0, generator_capacity=0):
+def calculate_system_cost(solar_capacity, battery_capacity=0, gas_capacity=0):
     solar_cost = solar_capacity * SOLAR_COST_PER_KW
     battery_cost = battery_capacity * BATTERY_COST_PER_KWH
-    generator_cost = generator_capacity * GENERATOR_COST_PER_KW
-    return solar_cost + battery_cost + generator_cost
+    gas_cost = gas_capacity * OCGT_CAPEX_PER_KW
+    return solar_cost + battery_cost + gas_cost
 
 def calculate_solar_area(capacity_kw):
     area_m2 = (capacity_kw * 1000) / (SOLAR_PANEL_EFFICIENCY * SOLAR_PANEL_DENSITY * 1000)
@@ -89,42 +78,6 @@ def calculate_solar_area(capacity_kw):
     ireland_area_km2 = 84421
     percentage_of_ireland = (area_km2 / ireland_area_km2) * 100
     return area_km2, percentage_of_ireland
-
-def plot_energy_output(daily_output, required_solar_array, demand_in_kw, cutoff_day, city_name):
-    scaled_daily_output = np.array(daily_output) * required_solar_array
-    generator_output = np.zeros_like(scaled_daily_output)
-    generator_output[:cutoff_day] = demand_in_kw * 24 - scaled_daily_output[:cutoff_day]
-    generator_output = np.maximum(generator_output, 0)
-
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.bar(range(len(scaled_daily_output)), scaled_daily_output, label='Solar Output', color='yellow')
-    ax.bar(range(len(generator_output)), generator_output, bottom=scaled_daily_output, 
-           label='Generator Output', color='gray')
-    ax.set_xlabel('Days (sorted by solar output)')
-    ax.set_ylabel('Energy Output (kWh)')
-    ax.set_title(f'Daily Energy Output in {city_name}: Solar vs Generator')
-    ax.legend()
-    ax.grid(True, linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.show()
-
-def plot_capex_breakdown(solar_capacity, battery_capacity, generator_capacity, city_name):
-    solar_capex = solar_capacity * SOLAR_COST_PER_KW
-    battery_capex = battery_capacity * BATTERY_COST_PER_KWH
-    generator_capex = generator_capacity * GENERATOR_COST_PER_KW
-
-    capex_components = [solar_capex, battery_capex, generator_capex]
-    labels = ['Solar Panels', 'Battery Storage', 'Generator']
-    colors = ['yellow', 'lightblue', 'lightgray']
-
-    fig, ax = plt.subplots(figsize=(10, 8))
-    wedges, texts, autotexts = ax.pie(capex_components, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-    ax.set_title(f'Capex Breakdown for Solar + Generator System in {city_name}')
-    ax.legend(wedges, labels, title="Components", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-    total_capex = sum(capex_components)
-    plt.text(0.5, -0.1, f'Total Capex: ${total_capex:,.0f}', ha='center', transform=ax.transAxes)
-    plt.tight_layout()
-    plt.show()
 
 def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
     locations = {
@@ -141,25 +94,29 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     ac = simulate_solar_output(latitude, longitude)
     daily_output = calculate_daily_output(ac)
 
-    required_solar_array_no_generators, required_solar_array_with_generators, generator_energy, generator_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, CUTOFF_DAY)
+    required_solar_array_no_gass, required_solar_array_with_gass, gas_energy, gas_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, CUTOFF_DAY)
 
     battery_capacity = demand_in_kw * SOLAR_BATTERY_STORAGE_HOURS
-    pure_solar_cost = calculate_system_cost(required_solar_array_no_generators, battery_capacity)
-    supported_system_cost = calculate_system_cost(required_solar_array_with_generators, battery_capacity, demand_in_kw)
+    pure_solar_cost = calculate_system_cost(required_solar_array_no_gass, battery_capacity)
+    supported_system_cost = calculate_system_cost(required_solar_array_with_gass, battery_capacity, demand_in_kw)
 
     annual_energy_used = 365 * daily_usage
-    pure_solar_energy_generated = sum(daily_output) * required_solar_array_no_generators
-    supported_solar_energy_generated = sum(daily_output) * required_solar_array_with_generators
+    pure_solar_energy_generated = sum(daily_output) * required_solar_array_no_gass
+    supported_solar_energy_generated = sum(daily_output) * required_solar_array_with_gass
 
     pure_solar_energy_used = min(annual_energy_used, pure_solar_energy_generated)
-    supported_solar_energy_used = min(annual_energy_used - generator_energy, supported_solar_energy_generated)
+    supported_solar_energy_used = min(annual_energy_used - gas_energy, supported_solar_energy_generated)
 
     wacc = calculate_wacc()
     pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_energy_used)
-    supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, generator_energy)
+    supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, gas_energy)
 
     pure_solar_capex_per_kw = calculate_capex_per_kw(pure_solar_cost, demand_in_kw)
     supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, demand_in_kw)
+
+    # Calculate capacity factors
+    pure_solar_capacity_factor = pure_solar_energy_used / (required_solar_array_no_gass * 24 * 365)
+    supported_solar_capacity_factor = supported_solar_energy_used / (required_solar_array_with_gass * 24 * 365)
 
     print("\nCost Analysis:")
     print(f"WACC: {wacc:.4f}")
@@ -168,25 +125,53 @@ def analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage, cut
     print(f"Total cost: ${pure_solar_cost:,.0f}")
     print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${pure_solar_capex_per_kw:.2f}/kW")
-    print(f"Solar Capacity Factor: {pure_solar_energy_used / pure_solar_energy_generated:.2%}")
-    area_km2, percentage = calculate_solar_area(required_solar_array_no_generators)
+    print(f"Solar Capacity Factor: {pure_solar_capacity_factor:.2%}")
+    area_km2, percentage = calculate_solar_area(required_solar_array_no_gass)
     print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
-    print(f"\nGenerator Supported System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
+    print(f"\nGas Supported System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${supported_system_cost:,.0f}")
     print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
-    print(f"Solar Capacity Factor: {supported_solar_energy_used / supported_solar_energy_generated:.2%}")
+    print(f"Solar Capacity Factor: {supported_solar_capacity_factor:.2%}")
     print(f"Fraction of energy from solar: {supported_solar_energy_used / annual_energy_used:.2%}")
-    area_km2, percentage = calculate_solar_area(required_solar_array_with_generators)
+    area_km2, percentage = calculate_solar_area(required_solar_array_with_gass)
     print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
-    plot_energy_output(daily_output, required_solar_array_with_generators, demand_in_kw, CUTOFF_DAY, city_name)
-    plot_capex_breakdown(required_solar_array_with_generators, battery_capacity, demand_in_kw, city_name)
+    # Instead of plotting, return the data needed for plots
+    energy_output_data = {
+        'solar_output': np.array(daily_output) * required_solar_array_with_gass,
+        'gas_output': np.maximum(demand_in_kw * 24 - np.array(daily_output) * required_solar_array_with_gass, 0)
+    }
+    
+    capex_breakdown_data = {
+        'components': ['Solar Panels', 'Battery Storage', 'Gas'],
+        'values': [
+            required_solar_array_with_gass * SOLAR_COST_PER_KW / 1e6,  # Convert to millions
+            battery_capacity * BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
+            demand_in_kw * OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
+        ]
+    }
+
+    return {
+        "lcoe": supported_system_lcoe,
+        "solar_fraction": supported_solar_energy_used / annual_energy_used,
+        "gas_fraction": gas_fraction,
+        "capacity_factor": supported_solar_capacity_factor,
+        "solar_area_km2": area_km2,
+        "solar_area_percentage": percentage,
+        "solar_capacity_gw": required_solar_array_with_gass / 1e6,
+        "gas_capacity_gw": demand_in_kw / 1e6,
+        "capex_per_kw": supported_system_capex_per_kw / 1e3,  # Convert to millions
+        "energy_output_data": energy_output_data,
+        "capex_breakdown_data": capex_breakdown_data,
+        "total_capex": supported_system_cost / 1e6  # Convert to millions
+    }
 
 if __name__ == "__main__":
-    city_name = 'Tuscon'
-    country_name = 'United States'
-    demand_in_kw = 1000000
-    daily_usage = 24000000
-    analyze_solar_system(city_name, country_name, demand_in_kw, daily_usage)
+    city = "Waterford"
+    country = "Ireland"
+    demand_in_kw = 1000000  # 1 GW
+    daily_usage = 24000000  # 24 GWh
+    
+    analyze_solar_system(city, country, demand_in_kw, daily_usage)
