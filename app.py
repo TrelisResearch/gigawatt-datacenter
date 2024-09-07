@@ -82,8 +82,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{solar_results['solar_area_km2']:.2f} km² ({solar_results['solar_area_percentage']:.2f}% of Ireland)",
                   f"{solar_results['solar_capacity_gw']:.2f} GW",
                   f"{solar_results['gas_capacity_gw']:.2f} GW",
-                  f"${int(solar_results['capex_per_kw'])} $/kW",
-                  f"${solar_results['total_capex']:.0f} million",
+                  f"${int(solar_results['capex_per_kw']):,.0f} $/kW",
+                  f"${solar_results['total_capex']:,.0f} million",
                   f"{solar_results['wacc']:.1%}"]
     })
     
@@ -159,8 +159,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{wind_results['capacity_factor']:.2%}",
                   f"{wind_results['wind_capacity_gw']:.2f} GW",
                   f"{wind_results['gas_capacity_gw']:.2f} GW",
-                  f"${int(wind_results['capex_per_kw'])} $/kW",
-                  f"${int(wind_results['total_capex'])} million",
+                  f"${int(wind_results['capex_per_kw']):,.0f} $/kW",
+                  f"${int(wind_results['total_capex']):,.0f} million",
                   f"{wind_results['wacc']:.1%}"]
     })
     
@@ -257,7 +257,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{hybrid_results['wind_capacity_gw']:.2f} GW",
                   f"{hybrid_results['gas_capacity_gw']:.2f} GW",
                   f"{hybrid_results['battery_capacity_gwh']:.2f} GWh",
-                  f"${int(hybrid_results['capex_per_kw'])}/kW",
+                  f"${int(hybrid_results['capex_per_kw']):,.0f}/kW",
                   f"${int(hybrid_results['total_capex']):,.0f} million",
                   f"{hybrid_results['wacc']:.1%}"]
     })
@@ -372,7 +372,7 @@ def update_visibility(choice):
     )
 
 with gr.Blocks() as iface:
-    gr.Markdown("# Gigawatt Data Center")
+    gr.Markdown("# Gigawatt Data Center - Energy System Analysis")
     gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)")
     gr.Markdown("Design approach:")
     gr.Markdown("- Select between wind, solar, wind + solar, or gas (combined cycle)")
@@ -409,27 +409,27 @@ with gr.Blocks() as iface:
     submit_button = gr.Button("Analyse")
 
     with gr.Tabs() as tabs:
-        with gr.Tab("Solar Analysis Results"):
+        with gr.Tab("Solar Analysis Results", id="solar"):
             solar_results = gr.Dataframe(label="Key Results")
             solar_energy_output = gr.Plot(label="Energy Output")
             solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.Tab("Wind Analysis Results"):
+        with gr.Tab("Wind Analysis Results", id="wind"):
             wind_results = gr.Dataframe(label="Key Results")
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.Tab("Hybrid System Analysis Results"):
+        with gr.Tab("Hybrid System Analysis Results", id="hybrid"):
             hybrid_results = gr.Dataframe(label="Key Results")
             hybrid_energy_output = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
             lcoe_vs_solar_fraction_plot = gr.Plot(label="LCOE vs Solar Fraction")
 
-        with gr.Tab("CCGT Analysis Results"):
+        with gr.Tab("CCGT Analysis Results", id="ccgt"):
             ccgt_results = gr.Dataframe(label="Key Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
 
-        with gr.Tab("Advanced Settings"):
+        with gr.Tab("Advanced Settings", id="advanced"):
             with gr.Column():
                 gr.Markdown("### Battery Parameters")
                 battery_cost = gr.Slider(minimum=100, maximum=500, value=config.BATTERY_COST_PER_KWH, label="Battery Cost ($/kWh)", info="Cost per kWh of battery storage")
@@ -491,5 +491,7 @@ with gr.Blocks() as iface:
             lcoe_vs_solar_fraction_plot
         ]
     )
+
+    iface.load(lambda: gr.Tabs.update(selected="solar"))
 
 iface.launch()
