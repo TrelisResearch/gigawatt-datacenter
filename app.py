@@ -7,7 +7,6 @@ from solar_wind import analyze_hybrid_system
 import config
 from geopy.geocoders import Nominatim
 import pandas as pd
-import base64
 
 def get_coordinates(location):
     geolocator = Nominatim(user_agent="SolarScript/1.0")
@@ -111,7 +110,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                       name='Gas Output', 
                                       marker_color=colors[1]))
     solar_energy_fig.update_layout(
-        title=f'Daily Energy Output in {lat}, {lon}: Solar vs Gas',
+        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Solar vs Gas',
         xaxis_title='Days (sorted by solar output)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
@@ -176,7 +175,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                      name='Gas Output', 
                                      marker_color=colors[1]))
     wind_energy_fig.update_layout(
-        title=f'Daily Energy Output in {lat}, {lon}: Wind vs Gas',
+        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Wind vs Gas',
         xaxis_title='Days (sorted by wind output)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
@@ -278,7 +277,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                                        name='Gas Output', 
                                        marker_color=colors[1]))
     hybrid_energy_fig.update_layout(
-        title=f'Daily Energy Output in {lat}, {lon}: Solar, Wind, and Gas',
+        title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Solar, Wind, and Gas',
         xaxis_title='Days (sorted by combined output)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
@@ -368,8 +367,8 @@ def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *a
 
 def update_visibility(choice):
     return (
-        gr.Column(visible=(choice == "Location")),
-        gr.Column(visible=(choice == "Coordinates"))
+        gr.update(visible=(choice == "Location")),
+        gr.update(visible=(choice == "Coordinates"))
     )
 
 with gr.Blocks() as iface:
@@ -410,27 +409,27 @@ with gr.Blocks() as iface:
     submit_button = gr.Button("Analyse")
 
     with gr.Tabs() as tabs:
-        with gr.TabItem("Solar Analysis Results", id=0):
+        with gr.Tab("Solar Analysis Results"):
             solar_results = gr.Dataframe(label="Key Results")
             solar_energy_output = gr.Plot(label="Energy Output")
             solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.TabItem("Wind Analysis Results", id=1):
+        with gr.Tab("Wind Analysis Results"):
             wind_results = gr.Dataframe(label="Key Results")
             wind_energy_output = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
-        with gr.TabItem("Hybrid System Analysis Results", id=2):
+        with gr.Tab("Hybrid System Analysis Results"):
             hybrid_results = gr.Dataframe(label="Key Results")
             hybrid_energy_output = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
             lcoe_vs_solar_fraction_plot = gr.Plot(label="LCOE vs Solar Fraction")
 
-        with gr.TabItem("CCGT Analysis Results", id=3):
+        with gr.Tab("CCGT Analysis Results"):
             ccgt_results = gr.Dataframe(label="Key Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
 
-        with gr.TabItem("Advanced Settings", id=4):
+        with gr.Tab("Advanced Settings"):
             with gr.Column():
                 gr.Markdown("### Battery Parameters")
                 battery_cost = gr.Slider(minimum=100, maximum=500, value=config.BATTERY_COST_PER_KWH, label="Battery Cost ($/kWh)", info="Cost per kWh of battery storage")
@@ -473,7 +472,7 @@ with gr.Blocks() as iface:
     )
         # In your Gradio interface setup:
     submit_button.click(
-        fn=analyze_energy_systems_wrapper,
+        fn=lambda *args: analyze_energy_systems_wrapper(*args),
         inputs=[
             input_type, location, latitude, longitude, demand_gw,
             solar_cost, wind_cost, battery_cost,
@@ -489,8 +488,7 @@ with gr.Blocks() as iface:
             wind_results, wind_energy_output, wind_capex_breakdown,
             ccgt_results, ccgt_cost_breakdown,
             hybrid_results, hybrid_energy_output, hybrid_capex_breakdown,
-            lcoe_vs_solar_fraction_plot,
-            gr.Tabs(selected=0)  # Select the first tab (Solar Analysis)
+            lcoe_vs_solar_fraction_plot
         ]
     )
 
