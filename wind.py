@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import requests
+import yfinance as yf
 
 # Cities: Cork, Waterford, Dublin (with their respective coordinates)
 locations = {
@@ -21,6 +22,23 @@ city_name = 'San Antonio'  # Change this to 'Waterford' or 'Dublin' as needed
 latitude = locations[city_name]['latitude']
 longitude = locations[city_name]['longitude']
 city = locations[city_name]['name']
+
+# Cost parameters
+wind_cost_per_kw = 1300  # $/kW
+battery_cost_per_kwh = 250  # $/kWh
+generator_cost_per_kw = 800  # $/kW
+
+# Natural Gas parameters
+ng_price_per_mmbtu = 20  # €/MMBtu (typical European price)
+ng_price_per_kwh = ng_price_per_mmbtu / 293.07  # Convert €/MMBtu to €/kWh
+
+# Open Cycle Gas Turbine (OCGT) parameters
+ocgt_efficiency = 0.35  # 35% efficiency for open cycle gas turbine
+ocgt_capex_per_kw = 800  # $/kW
+ocgt_opex_per_kwh = 0.02  # €/kWh for operation and maintenance
+
+# Project lifetime
+project_lifetime = 20  # years
 
 def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,temperature_2m,pressure_msl"
@@ -113,6 +131,120 @@ print('Required Wind Turbines (with generators): ', required_turbines_with_gener
 print(f'Total Installed Capacity (with generators): {required_turbines_with_generators * turbine.nominal_power/1e3:.2f} kW')
 print(f'Fraction handled by generators: {generator_fraction:.2%}')
 
+##--Add cost calculations--##
+
+# Fetch 20-year Treasury rate
+treasury_20y = yf.Ticker("^TYX")
+rate_20y = treasury_20y.info['previousClose'] / 100  # Convert to decimal
+
+# WACC calculation
+equity_premium = 0.05  # 5% premium over 20-year Treasury rate
+equity_return = rate_20y + equity_premium
+debt_premium = 0.02  # 2% premium over 20-year Treasury rate
+debt_return = rate_20y + debt_premium
+debt_ratio = 0.6  # 60% debt financing
+equity_ratio = 1 - debt_ratio
+tax_rate = 0.21  # Assuming 21% corporate tax rate
+
+wacc = (equity_return * equity_ratio) + (debt_return * debt_ratio * (1 - tax_rate))
+
+# Calculate system costs
+def calculate_system_cost(wind_capacity, battery_capacity=0, generator_capacity=0):
+    wind_cost = wind_capacity * wind_cost_per_kw
+    battery_cost = battery_capacity * battery_cost_per_kwh
+    generator_cost = generator_capacity * generator_cost_per_kw
+    return wind_cost + battery_cost + generator_cost
+
+# Pure wind case
+pure_wind_capacity = required_turbines_no_generators * turbine.nominal_power / 1e3  # in kW
+battery_capacity = demand_in_kW * 12  # 12 hours of storage in kWh
+pure_wind_cost = calculate_system_cost(pure_wind_capacity, battery_capacity)
+
+# Generator supported case
+supported_wind_capacity = required_turbines_with_generators * turbine.nominal_power / 1e3  # in kW
+generator_capacity = demand_in_kW
+supported_system_cost = calculate_system_cost(supported_wind_capacity, battery_capacity, generator_capacity)
+
+# Calculate annual energy used (which is equal to the demand)
+annual_energy_used = 365 * daily_usage  # in kWh
+
+# Calculate annual energy generated for wind systems
+pure_wind_energy_generated = sum(daily_output) * required_turbines_no_generators * 1e6  # in kWh
+supported_wind_energy_generated = sum(daily_output) * required_turbines_with_generators * 1e6  # in kWh
+
+# Wind energy used is the minimum of generated and demanded
+pure_wind_energy_used = min(annual_energy_used, pure_wind_energy_generated)
+supported_wind_energy_used = min(annual_energy_used - generator_input, supported_wind_energy_generated)
+
+# Calculate LCOE
+def calculate_lcoe(system_cost, annual_energy_used, annual_generator_energy=0):
+    annual_capital_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
+    annual_generator_fuel_cost = annual_generator_energy * (ng_price_per_kwh / ocgt_efficiency + ocgt_opex_per_kwh)
+    total_annual_cost = annual_capital_cost + annual_generator_fuel_cost
+    return total_annual_cost / annual_energy_used
+
+pure_wind_lcoe = calculate_lcoe(pure_wind_cost, annual_energy_used)
+supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, generator_input)
+
+# Natural Gas Case (OCGT)
+def calculate_ng_lcoe(demand_kwh, efficiency, capex_per_kw, opex_per_kwh):
+    capacity_kw = demand_in_kW
+    
+    capex = capacity_kw * capex_per_kw
+    annual_capex = capex * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
+    
+    fuel_cost_per_kwh = ng_price_per_kwh / efficiency
+    annual_fuel_cost = demand_kwh * fuel_cost_per_kwh
+    annual_opex = demand_kwh * opex_per_kwh
+    
+    total_annual_cost = annual_capex + annual_fuel_cost + annual_opex
+    return total_annual_cost / demand_kwh
+
+ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, ocgt_efficiency, ocgt_capex_per_kw, ocgt_opex_per_kwh)
+
+# Calculate capex per kW of rated capacity
+def calculate_capex_per_kw(total_cost, rated_capacity_kw):
+    return total_cost / rated_capacity_kw
+
+# Pure wind case
+pure_wind_capex_per_kw = calculate_capex_per_kw(pure_wind_cost, demand_in_kW)
+
+# Generator supported case
+supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, demand_in_kW)
+
+# Natural gas case (OCGT)
+ocgt_capex_per_kw = ocgt_capex_per_kw
+
+# Print results
+print("\nCost Analysis:")
+print(f"20-year Treasury rate: {rate_20y:.4f}")
+print(f"WACC: {wacc:.4f}")
+
+# Convert to USD for comparison
+usd_eur_rate = 1.1  # Assume 1 EUR = 1.1 USD
+
+print(f"\nNatural Gas System (OCGT):")
+print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
+print(f"Capex per kW: ${ocgt_capex_per_kw:.2f}/kW")
+
+print(f"\nPure Wind System (with 24h battery storage):")
+if required_turbines_no_generators != float('inf'):
+    print(f"Total cost: ${pure_wind_cost:,.0f}")
+    print(f"LCOE: ${pure_wind_lcoe:.4f}/kWh")
+    print(f"Capex per kW: ${pure_wind_capex_per_kw:.2f}/kW")
+    pure_wind_capacity_factor = pure_wind_energy_used / (pure_wind_capacity * 8760)
+    print(f"Wind Capacity Factor: {pure_wind_capacity_factor:.2%}")
+else:
+    print("Pure wind system is not feasible due to days with zero wind output.")
+
+print(f"\nGenerator Supported System (with 24h battery storage):")
+print(f"Total cost: ${supported_system_cost:,.0f}")
+print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
+print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
+supported_wind_capacity_factor = supported_wind_energy_used / (supported_wind_capacity * 8760)
+print(f"Wind Capacity Factor: {supported_wind_capacity_factor:.2%}")
+print(f"Fraction of energy from wind: {supported_wind_energy_used / annual_energy_used:.2%}")
+
 # Plotting
 scaled_daily_output = sorted_daily_output * required_turbines_with_generators * 1000
 generator_output = np.maximum(daily_usage - scaled_daily_output, 0)
@@ -129,5 +261,36 @@ ax.set_title(f'Daily Energy Output in {city_name}: Wind vs Generator')
 ax.legend()
 ax.grid(True, linestyle='--', alpha=0.7)
 
+plt.tight_layout()
+plt.show()
+
+# Prepare data for the capex breakdown chart for Wind + Generator case
+wind_capex = supported_wind_capacity * wind_cost_per_kw
+battery_capex = battery_capacity * battery_cost_per_kwh
+generator_capex = generator_capacity * generator_cost_per_kw
+
+capex_components = [wind_capex, battery_capex, generator_capex]
+labels = ['Wind Turbines', 'Battery Storage', 'Generator']
+colors = ['skyblue', 'lightblue', 'lightgray']
+
+# Create the pie chart
+fig, ax = plt.subplots(figsize=(10, 8))
+
+wedges, texts, autotexts = ax.pie(capex_components, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+
+# Customize the plot
+ax.set_title(f'Capex Breakdown for Wind + Generator System in {city_name}')
+
+# Add legend
+ax.legend(wedges, labels,
+          title="Components",
+          loc="center left",
+          bbox_to_anchor=(1, 0, 0.5, 1))
+
+# Add total capex value
+total_capex = sum(capex_components)
+plt.text(0.5, -0.1, f'Total Capex: ${total_capex:,.0f}', ha='center', transform=ax.transAxes)
+
+# Show the plot
 plt.tight_layout()
 plt.show()
