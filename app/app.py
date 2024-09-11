@@ -74,7 +74,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Solar results
     solar_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Solar Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Solar Capacity Factor', 
-                   'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+                   'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC',
+                   'Solar Curtailment'],  # Added Solar Curtailment
         'Value': [f"${solar_results['lcoe']:.4f}/kWh", 
                   f"{solar_results['solar_fraction']:.2%}",
                   f"{solar_results['gas_fraction']:.2%}",
@@ -84,7 +85,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{solar_results['gas_capacity_gw']:.2f} GW",
                   f"${int(solar_results['capex_per_kw']):,.0f} $/kW",
                   f"${solar_results['total_capex']:,.0f} million",
-                  f"{solar_results['wacc']:.1%}"]
+                  f"{solar_results['wacc']:.1%}",
+                  f"{solar_results['solar_curtailment']:.2%}"]  # Added Solar Curtailment
     })
     
     # Update plot styling
@@ -210,12 +212,14 @@ def analyze_energy_systems(lat, lon, demand_gw,
     hybrid_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Solar as fraction of solar + wind', 'Wind as fraction of solar + wind', 'Gas fraction of energy used', 
                    'Solar Capacity Factor', 'Wind Capacity Factor', 'Solar Capacity', 
-                   'Wind Capacity', 'Gas Capacity', 'Battery Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+                   'Wind Capacity', 'Gas Capacity', 'Battery Capacity', 'Capex per kW', 'Total Capex', 'WACC',
+                   'Solar Curtailment'],  # Added Solar Curtailment
         'Value': [f"${hybrid_results['lcoe']:.4f}/kWh",
                   f"{hybrid_results['solar_fraction']:.2%}",
                   f"{hybrid_results['wind_fraction']:.2%}",
                   f"{hybrid_results['gas_fraction']:.2%}",
                   f"{hybrid_results['solar_capacity_factor']:.2%}",
+                  f"{hybrid_results['solar_curtailment']:.2%}",
                   f"{hybrid_results['wind_capacity_factor']:.2%}",
                   f"{hybrid_results['solar_capacity_gw']:.2f} GW",
                   f"{hybrid_results['wind_capacity_gw']:.2f} GW",

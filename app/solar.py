@@ -58,13 +58,15 @@ def calculate_daily_output(ac):
     return sorted(daily_output)
 
 def calculate_system_requirements(daily_output, daily_usage, demand_in_kw, cutoff_day):
-    required_solar_array_no_gass = round(daily_usage / (daily_output[0]))
-    required_solar_array_with_gass = round(daily_usage / (daily_output[cutoff_day:][0]))
-    gas_energy = ((50 * demand_in_kw * 24) - sum(daily_output[:cutoff_day])*required_solar_array_with_gass)
+    required_solar_array = round(daily_usage / (daily_output[cutoff_day:][0]))
+    gas_energy_generated = ((50 * demand_in_kw * 24) - sum(daily_output[:cutoff_day])*required_solar_array)
+    gas_energy_consumed = gas_energy_generated
+    solar_energy_generated = (sum(daily_output[:cutoff_day]) + sum(daily_output[cutoff_day:]))*required_solar_array
+    solar_energy_consumed = (sum(daily_output[:cutoff_day]) + daily_output[cutoff_day]*(365-cutoff_day))*required_solar_array
     annual_demand = 365 * daily_usage
-    gas_fraction = gas_energy / annual_demand
+    gas_fraction = gas_energy_generated / annual_demand
 
-    return required_solar_array_no_gass, required_solar_array_with_gass, gas_energy, gas_fraction
+    return required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction
 
 def calculate_system_cost(solar_capacity, battery_capacity=0, gas_capacity=0):
     solar_cost = solar_capacity * SOLAR_COST_PER_KW
@@ -80,85 +82,74 @@ def calculate_solar_area(capacity_kw):
     return area_km2, percentage_of_ireland
 
 def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
-    # Remove the get_location_data function call
     print(f"Analyzing solar system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     ac = simulate_solar_output(latitude, longitude)
     daily_output = calculate_daily_output(ac)
 
-    required_solar_array_no_gass, required_solar_array_with_gass, gas_energy, gas_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, CUTOFF_DAY)
+    required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, CUTOFF_DAY)
 
     battery_capacity = demand_in_kw * SOLAR_BATTERY_STORAGE_HOURS
-    pure_solar_cost = calculate_system_cost(required_solar_array_no_gass, battery_capacity)
-    supported_system_cost = calculate_system_cost(required_solar_array_with_gass, battery_capacity, demand_in_kw)
+    system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw)
 
-    annual_energy_used = 365 * daily_usage
-    pure_solar_energy_generated = sum(daily_output) * required_solar_array_no_gass
-    supported_solar_energy_generated = sum(daily_output) * required_solar_array_with_gass
+    annual_energy_consumed = 365 * daily_usage
 
-    pure_solar_energy_used = min(annual_energy_used, pure_solar_energy_generated)
-    supported_solar_energy_used = min(annual_energy_used - gas_energy, supported_solar_energy_generated)
+    total_energy_generated = solar_energy_consumed + gas_energy_consumed
+    if total_energy_generated == annual_energy_consumed:
+        print("Energy balance check passed: Total energy generated equals annual energy consumed.")
+    else:
+        print("Energy balance check failed: Total energy generated does not equal annual energy consumed.")
 
     wacc = calculate_wacc()
-    pure_solar_lcoe = calculate_lcoe(pure_solar_cost, annual_energy_used)
-    supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, gas_energy)
+    system_lcoe = calculate_lcoe(system_cost, annual_energy_consumed, gas_energy_consumed)
+    system_capex_per_kw = calculate_capex_per_kw(system_cost, demand_in_kw)
 
-    pure_solar_capex_per_kw = calculate_capex_per_kw(pure_solar_cost, demand_in_kw)
-    supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, demand_in_kw)
+    solar_capacity_factor = solar_energy_consumed / (required_solar_array * 24 * 365)
 
-    # Calculate capacity factors
-    pure_solar_capacity_factor = pure_solar_energy_used / (required_solar_array_no_gass * 24 * 365)
-    supported_solar_capacity_factor = supported_solar_energy_used / (required_solar_array_with_gass * 24 * 365)
+    solar_curtailment = (solar_energy_generated - solar_energy_consumed) / solar_energy_generated
 
     print("\nCost Analysis:")
     print(f"WACC: {wacc:.4f}")
 
-    print(f"\nPure Solar System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
-    print(f"Total cost: ${pure_solar_cost:,.0f}")
-    print(f"LCOE: ${pure_solar_lcoe:.4f}/kWh")
-    print(f"Capex per kW: ${pure_solar_capex_per_kw:.2f}/kW")
-    print(f"Solar Capacity Factor: {pure_solar_capacity_factor:.2%}")
-    area_km2, percentage = calculate_solar_area(required_solar_array_no_gass)
-    print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
-
     print(f"\nGas Supported System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
-    print(f"Total cost: ${supported_system_cost:,.0f}")
-    print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
-    print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
-    print(f"Solar Capacity Factor: {supported_solar_capacity_factor:.2%}")
-    print(f"Fraction of energy from solar: {supported_solar_energy_used / annual_energy_used:.2%}")
-    area_km2, percentage = calculate_solar_area(required_solar_array_with_gass)
+    print(f"Total cost: ${system_cost:,.0f}")
+    print(f"LCOE: ${system_lcoe:.4f}/kWh")
+    print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
+    print(f"Solar Capacity Factor: {solar_capacity_factor:.2%}")
+    print(f"Solar Curtailment: {solar_curtailment:.2%}")
+    print(f"Fraction of energy from solar: {solar_energy_consumed / annual_energy_consumed:.2%}")
+    area_km2, percentage = calculate_solar_area(required_solar_array)
     print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
-    # Instead of plotting, return the data needed for plots
     energy_output_data = {
-        'solar_output': np.array(daily_output) * required_solar_array_with_gass,
-        'gas_output': np.maximum(demand_in_kw * 24 - np.array(daily_output) * required_solar_array_with_gass, 0)
+        'solar_output': np.array(daily_output) * required_solar_array,
+        'gas_output': np.maximum(demand_in_kw * 24 - np.array(daily_output) * required_solar_array, 0)
     }
     
     capex_breakdown_data = {
         'components': ['Solar Panels', 'Battery Storage', 'Gas'],
         'values': [
-            required_solar_array_with_gass * SOLAR_COST_PER_KW / 1e6,  # Convert to millions
-            battery_capacity * BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
-            demand_in_kw * OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
+            required_solar_array * SOLAR_COST_PER_KW / 1e6,
+            battery_capacity * BATTERY_COST_PER_KWH / 1e6,
+            demand_in_kw * OCGT_CAPEX_PER_KW / 1e6
         ]
     }
 
     return {
-        "lcoe": supported_system_lcoe,
-        "solar_fraction": supported_solar_energy_used / annual_energy_used,
+        "lcoe": system_lcoe,
+        "solar_fraction": solar_energy_consumed / annual_energy_consumed,
         "gas_fraction": gas_fraction,
-        "capacity_factor": supported_solar_capacity_factor,
+        "capacity_factor": solar_capacity_factor,
         "solar_area_km2": area_km2,
         "solar_area_percentage": percentage,
-        "solar_capacity_gw": required_solar_array_with_gass / 1e6,
+        "solar_capacity_gw": required_solar_array / 1e6,
         "gas_capacity_gw": demand_in_kw / 1e6,
-        "capex_per_kw": supported_system_capex_per_kw,
+        "capex_per_kw": system_capex_per_kw,
         "energy_output_data": energy_output_data,
         "capex_breakdown_data": capex_breakdown_data,
-        "total_capex": supported_system_cost / 1e6,  # Convert to millions
-        "wacc": wacc  # Add this line
+        "total_capex": system_cost / 1e6,
+        "wacc": wacc,
+        "solar_curtailment": solar_curtailment
     }
 
 if __name__ == "__main__":

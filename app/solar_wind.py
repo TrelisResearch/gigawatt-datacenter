@@ -165,6 +165,7 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_usage, cutoff
         "longitude": longitude,
         "wacc": wacc,
         "lcoe_vs_solar_fraction_data": lcoe_vs_solar_fraction_data,
+        "solar_curtailment": 0
     }
 
 if __name__ == "__main__":
