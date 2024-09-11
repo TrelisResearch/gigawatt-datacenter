@@ -32,7 +32,7 @@ WIND_BATTERY_STORAGE_HOURS = 12   # Hours of battery storage for pure wind syste
 CUTOFF_DAY = 50  # Number of days the system should be able to handle without gas support
 
 # Hybrid system threshold
-HYBRID_LCOE_THRESHOLD = 0.15  # 15% LCOE improvement threshold for hybriding
+HYBRID_LCOE_THRESHOLD = 0  # 0% LCOE improvement threshold for hybriding
 
 # WACC parameters
 EQUITY_PREMIUM = 0.05

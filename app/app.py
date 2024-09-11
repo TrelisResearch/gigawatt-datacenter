@@ -73,7 +73,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
     
     # Solar results
     solar_results_df = pd.DataFrame({
-        'Metric': ['LCOE', 'Solar Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Solar Capacity Factor', 
+        'Metric': ['LCOE', 'Solar Fraction of Energy Consumed', 'Gas Fraction of Energy Consumed', 'Solar Capacity Factor', 
                    'Solar Curtailment', 'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
         'Value': [f"${solar_results['lcoe']:.4f}/kWh", 
                   f"{solar_results['solar_fraction']:.2%}",
@@ -100,19 +100,19 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Color palette (adjusted for better visibility)
     colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F']
 
-    # Solar energy output plot
+    # Solar energy generated plot
     solar_energy_fig = go.Figure()
-    solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_output_data']['solar_output']))), 
-                                      y=solar_results['energy_output_data']['solar_output'], 
+    solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_generated_data']['solar_generated']))), 
+                                      y=solar_results['energy_generated_data']['solar_generated'], 
                                       name='Solar Output', 
                                       marker_color=colors[0]))
-    solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_output_data']['gas_output']))), 
-                                      y=solar_results['energy_output_data']['gas_output'], 
+    solar_energy_fig.add_trace(go.Bar(x=list(range(len(solar_results['energy_generated_data']['gas_generated']))), 
+                                      y=solar_results['energy_generated_data']['gas_generated'], 
                                       name='Gas Output', 
                                       marker_color=colors[1]))
     solar_energy_fig.update_layout(
         title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Solar + Gas',
-        xaxis_title='Days (sorted by solar output)',
+        xaxis_title='Days (sorted by solar generated)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
         **plot_layout
@@ -134,7 +134,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
     
     # Wind results
     wind_results_df = pd.DataFrame({
-        'Metric': ['LCOE', 'Wind Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Wind Capacity Factor', 
+        'Metric': ['LCOE', 'Wind Fraction of Energy Consumed', 'Gas Fraction of Energy Consumed', 'Wind Capacity Factor', 
                 'Wind Curtailment', 'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
         'Value': [f"${wind_results['lcoe']:.4f}/kWh", 
                 f"{wind_results['wind_fraction']:.2%}",
@@ -148,19 +148,19 @@ def analyze_energy_systems(lat, lon, demand_gw,
                 f"{wind_results['wacc']:.1%}"]
     })
     
-    # Wind energy output plot
+    # Wind energy generated plot
     wind_energy_fig = go.Figure()
-    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_output_data']['wind_output']))), 
-                                     y=wind_results['energy_output_data']['wind_output'], 
+    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_generated_data']['wind_generated']))), 
+                                     y=wind_results['energy_generated_data']['wind_generated'], 
                                      name='Wind Output', 
                                      marker_color=colors[2]))
-    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_output_data']['gas_output']))), 
-                                     y=wind_results['energy_output_data']['gas_output'], 
+    wind_energy_fig.add_trace(go.Bar(x=list(range(len(wind_results['energy_generated_data']['gas_generated']))), 
+                                     y=wind_results['energy_generated_data']['gas_generated'], 
                                      name='Gas Output', 
                                      marker_color=colors[1]))
     wind_energy_fig.update_layout(
         title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Wind + Gas',
-        xaxis_title='Days (sorted by wind output)',
+        xaxis_title='Days (sorted by wind generated)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
         **plot_layout
@@ -183,7 +183,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # CCGT results
     ccgt_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Capacity', 'Capex per kW', 'Total Capex', 
-                   'Annual Energy Used', 'WACC'],
+                   'Annual Energy Consumed', 'WACC'],
         'Value': [f"${ccgt_results['lcoe']:.4f}/kWh",
                   f"{ccgt_results['capacity_gw']:.2f} GW",
                   f"${ccgt_results['capex_per_kw']:.2f}/kW",
@@ -210,10 +210,9 @@ def analyze_energy_systems(lat, lon, demand_gw,
     
     # Hybrid results
     hybrid_results_df = pd.DataFrame({
-        'Metric': ['LCOE', 'Solar as fraction of solar + wind', 'Wind as fraction of solar + wind', 'Gas fraction of energy used', 
-                   'Solar Capacity Factor', 'Wind Capacity Factor', 'Solar Capacity', 
-                   'Wind Capacity', 'Gas Capacity', 'Battery Capacity', 'Capex per kW', 'Total Capex', 'WACC',
-                   'Solar Curtailment'],  # Added Solar Curtailment
+        'Metric': ['LCOE', 'Solar as fraction of solar + wind', 'Wind as fraction of solar + wind', 'Gas fraction of energy consumed', 
+                   'Solar Capacity Factor', 'Solar Curtailment', 'Wind Capacity Factor', 'Wind Curtailment', 'Solar Capacity', 
+                   'Wind Capacity', 'Gas Capacity', 'Battery Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
         'Value': [f"${hybrid_results['lcoe']:.4f}/kWh",
                   f"{hybrid_results['solar_fraction']:.2%}",
                   f"{hybrid_results['wind_fraction']:.2%}",
@@ -221,6 +220,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{hybrid_results['solar_capacity_factor']:.2%}",
                   f"{hybrid_results['solar_curtailment']:.2%}",
                   f"{hybrid_results['wind_capacity_factor']:.2%}",
+                  f"{hybrid_results['wind_curtailment']:.2%}",
                   f"{hybrid_results['solar_capacity_gw']:.2f} GW",
                   f"{hybrid_results['wind_capacity_gw']:.2f} GW",
                   f"{hybrid_results['gas_capacity_gw']:.2f} GW",
@@ -230,23 +230,23 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{hybrid_results['wacc']:.1%}"]
     })
     
-    # Hybrid energy output plot
+    # Hybrid energy generated plot
     hybrid_energy_fig = go.Figure()
-    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['solar_output']))), 
-                                       y=hybrid_results['energy_output_data']['solar_output'], 
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_generated_data']['solar_generated']))), 
+                                       y=hybrid_results['energy_generated_data']['solar_generated'], 
                                        name='Solar Output', 
                                        marker_color=colors[0]))
-    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['wind_output']))), 
-                                       y=hybrid_results['energy_output_data']['wind_output'], 
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_generated_data']['wind_generated']))), 
+                                       y=hybrid_results['energy_generated_data']['wind_generated'], 
                                        name='Wind Output', 
                                        marker_color=colors[2]))
-    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_output_data']['gas_output']))), 
-                                       y=hybrid_results['energy_output_data']['gas_output'], 
+    hybrid_energy_fig.add_trace(go.Bar(x=list(range(len(hybrid_results['energy_generated_data']['gas_generated']))), 
+                                       y=hybrid_results['energy_generated_data']['gas_generated'], 
                                        name='Gas Output', 
                                        marker_color=colors[1]))
     hybrid_energy_fig.update_layout(
         title=f'Daily Energy Output at {lat:.2f}, {lon:.2f}: Solar, Wind, and Gas',
-        xaxis_title='Days (sorted by combined output)',
+        xaxis_title='Days (sorted by combined generated)',
         yaxis_title='Energy Output (kWh)',
         barmode='stack',
         **plot_layout
@@ -360,17 +360,17 @@ with gr.Blocks() as iface:
     with gr.Tabs() as tabs:
         with gr.Tab("Solar Analysis Results", id="solar"):
             solar_results = gr.Dataframe(label="Key Results")
-            solar_energy_output = gr.Plot(label="Energy Output")
+            solar_energy_generated = gr.Plot(label="Energy Output")
             solar_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
         with gr.Tab("Wind Analysis Results", id="wind"):
             wind_results = gr.Dataframe(label="Key Results")
-            wind_energy_output = gr.Plot(label="Energy Output")
+            wind_energy_generated = gr.Plot(label="Energy Output")
             wind_capex_breakdown = gr.Plot(label="Capex Breakdown")
         
         with gr.Tab("Hybrid System Analysis Results", id="hybrid"):
             hybrid_results = gr.Dataframe(label="Key Results")
-            hybrid_energy_output = gr.Plot(label="Energy Output")
+            hybrid_energy_generated = gr.Plot(label="Energy Output")
             hybrid_capex_breakdown = gr.Plot(label="Capex Breakdown")
             lcoe_vs_solar_fraction_plot = gr.Plot(label="LCOE vs Solar Fraction")
 
@@ -433,10 +433,10 @@ with gr.Blocks() as iface:
             equity_premium, debt_premium, debt_ratio, tax_rate
         ],
         outputs=[
-            solar_results, solar_energy_output, solar_capex_breakdown,
-            wind_results, wind_energy_output, wind_capex_breakdown,
+            solar_results, solar_energy_generated, solar_capex_breakdown,
+            wind_results, wind_energy_generated, wind_capex_breakdown,
             ccgt_results, ccgt_cost_breakdown,
-            hybrid_results, hybrid_energy_output, hybrid_capex_breakdown,
+            hybrid_results, hybrid_energy_generated, hybrid_capex_breakdown,
             lcoe_vs_solar_fraction_plot
         ]
     )

@@ -19,7 +19,7 @@ def get_location_data(city_name, country_name, locations):
     
     return latitude, longitude, city
 
-def simulate_solar_output(latitude, longitude):
+def simulate_solar_generated(latitude, longitude):
     array_kwargs_tracker = dict(
         module_parameters=dict(pdc0=1, gamma_pdc=-0.004),
         temperature_model_parameters=dict(a=-3.56, b=-0.075, deltaT=3)
@@ -38,31 +38,31 @@ def simulate_solar_output(latitude, longitude):
 
     return mc.results.ac
 
-def calculate_daily_output(ac):
+def calculate_daily_generated(ac):
     daily_energy_sum = 0
     hour_counter = 0
-    daily_output = []
+    daily_generated = []
 
-    for hourly_output in ac:  # Modified this line
+    for hourly_generated in ac:  # Modified this line
         if hour_counter < 24:
-            daily_energy_sum += hourly_output
+            daily_energy_sum += hourly_generated
             hour_counter += 1
         else:
-            daily_output.append(daily_energy_sum)
-            daily_energy_sum = hourly_output
+            daily_generated.append(daily_energy_sum)
+            daily_energy_sum = hourly_generated
             hour_counter = 1
 
     if daily_energy_sum > 0:
-        daily_output.append(daily_energy_sum)
+        daily_generated.append(daily_energy_sum)
 
-    return sorted(daily_output)
+    return sorted(daily_generated)
 
-def calculate_system_requirements(daily_output, daily_usage, demand_in_kw, cutoff_day):
-    required_solar_array = round(daily_usage / (daily_output[cutoff_day:][0]))
-    gas_energy_generated = ((50 * demand_in_kw * 24) - sum(daily_output[:cutoff_day])*required_solar_array)
+def calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day):
+    required_solar_array = round(daily_usage / (daily_generated[cutoff_day:][0]))
+    gas_energy_generated = ((50 * demand_in_kw * 24) - sum(daily_generated[:cutoff_day])*required_solar_array)
     gas_energy_consumed = gas_energy_generated
-    solar_energy_generated = (sum(daily_output[:cutoff_day]) + sum(daily_output[cutoff_day:]))*required_solar_array
-    solar_energy_consumed = (sum(daily_output[:cutoff_day]) + daily_output[cutoff_day]*(365-cutoff_day))*required_solar_array
+    solar_energy_generated = (sum(daily_generated[:cutoff_day]) + sum(daily_generated[cutoff_day:]))*required_solar_array
+    solar_energy_consumed = (sum(daily_generated[:cutoff_day]) + daily_generated[cutoff_day]*(365-cutoff_day))*required_solar_array
     annual_demand = 365 * daily_usage
     gas_fraction = gas_energy_generated / annual_demand
 
@@ -84,10 +84,10 @@ def calculate_solar_area(capacity_kw):
 def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
     print(f"Analyzing solar system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
-    ac = simulate_solar_output(latitude, longitude)
-    daily_output = calculate_daily_output(ac)
+    ac = simulate_solar_generated(latitude, longitude)
+    daily_generated = calculate_daily_generated(ac)
 
-    required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_output, daily_usage, demand_in_kw, CUTOFF_DAY)
+    required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, CUTOFF_DAY)
 
     battery_capacity = demand_in_kw * SOLAR_BATTERY_STORAGE_HOURS
     system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw)
@@ -121,9 +121,9 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     area_km2, percentage = calculate_solar_area(required_solar_array)
     print(f"Required solar area: {area_km2:.2f} km² ({percentage:.2f}% of Ireland's land area)")
 
-    energy_output_data = {
-        'solar_output': np.array(daily_output) * required_solar_array,
-        'gas_output': np.maximum(demand_in_kw * 24 - np.array(daily_output) * required_solar_array, 0)
+    energy_generated_data = {
+        'solar_generated': np.array(daily_generated) * required_solar_array,
+        'gas_generated': np.maximum(demand_in_kw * 24 - np.array(daily_generated) * required_solar_array, 0)
     }
     
     capex_breakdown_data = {
@@ -145,7 +145,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         "solar_capacity_gw": required_solar_array / 1e6,
         "gas_capacity_gw": demand_in_kw / 1e6,
         "capex_per_kw": system_capex_per_kw,
-        "energy_output_data": energy_output_data,
+        "energy_generated_data": energy_generated_data,
         "capex_breakdown_data": capex_breakdown_data,
         "total_capex": system_cost / 1e6,
         "wacc": wacc,

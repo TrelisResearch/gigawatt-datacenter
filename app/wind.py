@@ -51,27 +51,27 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     turbine.power_output = mc.power_output
 
     # Calculate daily energy output
-    daily_output = turbine.power_output.resample('D').sum() / 1e6  # Convert to MWh
+    daily_generated = turbine.power_output.resample('D').sum() / 1e6  # Convert to MWh
 
     # Sort daily output for analysis
-    sorted_daily_output = daily_output.sort_values()
+    sorted_daily_generated = daily_generated.sort_values()
 
     # Print some statistics about the daily output
     print(f"Daily output statistics for coordinates ({latitude}, {longitude}):")
-    print(sorted_daily_output.describe())
+    print(sorted_daily_generated.describe())
 
     # Calculate required wind turbines
-    required_turbines = round(daily_usage / (sorted_daily_output.iloc[cutoff_day] * 1000))
+    required_turbines = round(daily_usage / (sorted_daily_generated.iloc[cutoff_day] * 1000))
 
     # Calculate gas input and fraction
     annual_demand = 365 * daily_usage
-    gas_input = max(0, (cutoff_day * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:cutoff_day]) * required_turbines * 1000)
+    gas_input = max(0, (cutoff_day * demand_in_kw * 24) - sum(sorted_daily_generated.iloc[:cutoff_day]) * required_turbines * 1000)
     gas_fraction = gas_input / annual_demand if annual_demand > 0 else 0
 
     # Calculate average capacity factor
     wind_energy_rated = turbine.nominal_power * required_turbines / 1e3  # Total capacity in kW
-    wind_energy_generated = sum(sorted_daily_output) * required_turbines * 1000  # Total energy in kWh
-    wind_energy_consumed = (sum(sorted_daily_output.iloc[:cutoff_day]) + (365-cutoff_day)*sorted_daily_output.iloc[cutoff_day]) * required_turbines * 1000
+    wind_energy_generated = sum(sorted_daily_generated) * required_turbines * 1000  # Total energy in kWh
+    wind_energy_consumed = (sum(sorted_daily_generated.iloc[:cutoff_day]) + (365-cutoff_day)*sorted_daily_generated.iloc[cutoff_day]) * required_turbines * 1000
     wind_capacity_factor = wind_energy_consumed / (wind_energy_rated * 8760)
     wind_curtailment = (wind_energy_generated - wind_energy_consumed) / wind_energy_generated
 
@@ -110,7 +110,7 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     print(f"Fraction of energy from wind: {1 - gas_fraction:.2%}")
     
     if plot:
-        plot_energy_output(sorted_daily_output, required_turbines, daily_usage, f"({latitude}, {longitude})")
+        plot_energy_generated(sorted_daily_generated, required_turbines, daily_usage, f"({latitude}, {longitude})")
         plot_capex_breakdown(wind_capacity, battery_capacity, gas_capacity, f"({latitude}, {longitude})")
 
     results = {
@@ -122,9 +122,9 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
         "wind_capacity_gw": wind_capacity / 1e6,
         "gas_capacity_gw": gas_capacity / 1e6,
         "capex_per_kw": system_capex_per_kw,
-        "energy_output_data": {
-            'wind_output': sorted_daily_output * required_turbines * 1000,
-            'gas_output': np.maximum(daily_usage - sorted_daily_output * required_turbines * 1000, 0)
+        "energy_generated_data": {
+            'wind_generated': sorted_daily_generated * required_turbines * 1000,
+            'gas_generated': np.maximum(daily_usage - sorted_daily_generated * required_turbines * 1000, 0)
         },
         "capex_breakdown_data": {
             'components': ['Wind Turbines', 'Battery Storage', 'Gas'],
@@ -138,30 +138,30 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
         "wacc": wacc
     }
 
-        # Check if all arrays in energy_output_data have the same length
-    wind_output_len = len(results['energy_output_data']['wind_output'])
-    gas_output_len = len(results['energy_output_data']['gas_output'])
-    if wind_output_len != gas_output_len:
-        raise ValueError(f"Mismatch in energy output data lengths: wind_output ({wind_output_len}) != gas_output ({gas_output_len})")
+        # Check if all arrays in energy_generated_data have the same length
+    wind_generated_len = len(results['energy_generated_data']['wind_generated'])
+    gas_generated_len = len(results['energy_generated_data']['gas_generated'])
+    if wind_generated_len != gas_generated_len:
+        raise ValueError(f"Mismatch in energy output data lengths: wind_generated ({wind_generated_len}) != gas_generated ({gas_generated_len})")
 
     # Add this debugging code
-    wind_output_len = len(results['energy_output_data']['wind_output'])
-    gas_output_len = len(results['energy_output_data']['gas_output'])
-    print(f"Wind output length: {wind_output_len}")
-    print(f"Gas output length: {gas_output_len}")
-    if wind_output_len != gas_output_len:
-        raise ValueError(f"Mismatch in energy output data lengths: wind_output ({wind_output_len}) != gas_output ({gas_output_len})")
+    wind_generated_len = len(results['energy_generated_data']['wind_generated'])
+    gas_generated_len = len(results['energy_generated_data']['gas_generated'])
+    print(f"Wind output length: {wind_generated_len}")
+    print(f"Gas output length: {gas_generated_len}")
+    if wind_generated_len != gas_generated_len:
+        raise ValueError(f"Mismatch in energy output data lengths: wind_generated ({wind_generated_len}) != gas_generated ({gas_generated_len})")
 
     return results
 
-def plot_energy_output(sorted_daily_output, required_turbines, daily_usage, location):
-    scaled_daily_output = sorted_daily_output * required_turbines * 1000
-    gas_output = np.maximum(daily_usage - scaled_daily_output, 0)
+def plot_energy_generated(sorted_daily_generated, required_turbines, daily_usage, location):
+    scaled_daily_generated = sorted_daily_generated * required_turbines * 1000
+    gas_generated = np.maximum(daily_usage - scaled_daily_generated, 0)
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    ax.bar(range(len(scaled_daily_output)), scaled_daily_output, label='Wind Output', color='blue')
-    ax.bar(range(len(gas_output)), gas_output, bottom=scaled_daily_output, 
+    ax.bar(range(len(scaled_daily_generated)), scaled_daily_generated, label='Wind Output', color='blue')
+    ax.bar(range(len(gas_generated)), gas_generated, bottom=scaled_daily_generated, 
            label='Gas Output', color='gray')
 
     ax.set_xlabel('Days (sorted by wind output)')
