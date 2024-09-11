@@ -1,4 +1,4 @@
-from config import *
+from runtime_config import config
 import pandas as pd
 import numpy as np
 from solar import simulate_solar_generated, calculate_daily_generated as calculate_solar_daily_generated
@@ -13,12 +13,15 @@ def simulate_wind_generated(weather_data):
 def calculate_wind_daily_generated(wind_generated):
     return wind_generated.resample('D').sum()  # Daily sum of kWh per kW of capacity
 
-def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, cutoff_day=CUTOFF_DAY):
-    # Remove the get_coordinates function call
+def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, cutoff_day=None):
+    if cutoff_day is None:
+        cutoff_day = config.CUTOFF_DAY
+
     print(f"Analyzing hybrid system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
-    wacc = calculate_wacc()    # Simulate solar output
+    wacc = calculate_wacc()
 
+    # Simulate solar output
     solar_generated = simulate_solar_generated(latitude, longitude)
     solar_daily = pd.Series(calculate_solar_daily_generated(solar_generated))
 
@@ -60,9 +63,6 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
         # Sort days by combined generation
         combined_generation = solar_generated + wind_generated
         sorted_indices = np.argsort(combined_generation.values)
-        
-        # print(f"Debug: gamma = {gamma}")
-        # print(f"Debug: solar_capacity = {solar_capacity}, wind_capacity = {wind_capacity}")
 
         for i, idx in enumerate(sorted_indices):
             if i < cutoff_day:
@@ -89,22 +89,18 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
         solar_curtailment = (solar_generated.sum() - solar_energy_consumed) / solar_generated.sum() if solar_generated.sum() > 0 else 0
         wind_curtailment = (wind_generated.sum() - wind_energy_consumed) / wind_generated.sum() if wind_generated.sum() > 0 else 0
 
-        # print(f"Debug: solar_capacity = {solar_capacity}, wind_capacity = {wind_capacity}")
-        # print(f"Debug: solar_generated.sum() = {solar_generated.sum()}, wind_generated.sum() = {wind_generated.sum()}")
-        # print(f"Debug: solar_energy_consumed = {solar_energy_consumed}, wind_energy_consumed = {wind_energy_consumed}")
-
         gas_energy = max(0, (cutoff_day * demand_in_kw * 24) - sum(sorted_combined_daily_normalized.iloc[:cutoff_day]) * required_capacity)
         annual_demand = 365 * daily_consumption
         gas_fraction = gas_energy / annual_demand
 
-        battery_hours = SOLAR_BATTERY_STORAGE_HOURS * gamma + WIND_BATTERY_STORAGE_HOURS * (1 - gamma)
+        battery_hours = config.SOLAR_BATTERY_STORAGE_HOURS * gamma + config.WIND_BATTERY_STORAGE_HOURS * (1 - gamma)
         battery_capacity = demand_in_kw * battery_hours
 
         system_cost = (
-            solar_capacity * SOLAR_COST_PER_KW +
-            wind_capacity * WIND_COST_PER_KW +
-            battery_capacity * BATTERY_COST_PER_KWH +
-            demand_in_kw * OCGT_CAPEX_PER_KW
+            solar_capacity * config.SOLAR_COST_PER_KW +
+            wind_capacity * config.WIND_COST_PER_KW +
+            battery_capacity * config.BATTERY_COST_PER_KWH +
+            demand_in_kw * config.OCGT_CAPEX_PER_KW
         )
 
         lcoe = calculate_lcoe(system_cost, annual_demand, gas_energy)
@@ -145,7 +141,7 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
     best_single_lcoe = min(solar_only_result["lcoe"], wind_only_result["lcoe"])
     lcoe_improvement = (best_single_lcoe - best_hybrid_result["lcoe"]) / best_single_lcoe
 
-    if lcoe_improvement >= HYBRID_LCOE_THRESHOLD:
+    if lcoe_improvement >= config.HYBRID_LCOE_THRESHOLD:
         best_result = best_hybrid_result
         system_type = "Hybrid"
     elif solar_only_result["lcoe"] <= wind_only_result["lcoe"]:
@@ -176,10 +172,10 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
     capex_breakdown_data = {
         'components': ['Solar Panels', 'Wind Turbines', 'Battery Storage', 'Gas'],
         'values': [
-            best_result["solar_capacity"] * SOLAR_COST_PER_KW / 1e6,
-            best_result["wind_capacity"] * WIND_COST_PER_KW / 1e6,
-            best_result["battery_capacity"] * BATTERY_COST_PER_KWH / 1e6,
-            demand_in_kw * OCGT_CAPEX_PER_KW / 1e6
+            best_result["solar_capacity"] * config.SOLAR_COST_PER_KW / 1e6,
+            best_result["wind_capacity"] * config.WIND_COST_PER_KW / 1e6,
+            best_result["battery_capacity"] * config.BATTERY_COST_PER_KWH / 1e6,
+            demand_in_kw * config.OCGT_CAPEX_PER_KW / 1e6
         ]
     }
 

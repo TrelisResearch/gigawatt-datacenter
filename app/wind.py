@@ -1,11 +1,11 @@
+from runtime_config import config
+
 from windpowerlib import ModelChain, WindTurbine
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import requests
-import yfinance as yf
-from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
-from config import *
+from utils import calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
 def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,temperature_2m,pressure_msl"
@@ -28,17 +28,19 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
 
 # Calculate system costs
 def calculate_system_cost(wind_capacity, battery_capacity=0, gas_capacity=0):
-    wind_cost = wind_capacity * WIND_COST_PER_KW
-    battery_cost = battery_capacity * BATTERY_COST_PER_KWH
-    gas_cost = gas_capacity * OCGT_CAPEX_PER_KW
+    wind_cost = wind_capacity * config.WIND_COST_PER_KW
+    battery_cost = battery_capacity * config.BATTERY_COST_PER_KWH
+    gas_cost = gas_capacity * config.OCGT_CAPEX_PER_KW
     return wind_cost + battery_cost + gas_cost
 
-def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=CUTOFF_DAY, start_date="2022-01-01", end_date="2022-12-31", plot=False):
-    # Remove the get_coordinates function call
+def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=None):
+    if cutoff_day is None:
+        cutoff_day = config.CUTOFF_DAY
+
     print(f"Analyzing wind energy for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     # Fetch weather data
-    weather = fetch_open_meteo_data(latitude, longitude, start_date, end_date)
+    weather = fetch_open_meteo_data(latitude, longitude, "2022-01-01", "2022-12-31")
 
     # Print average wind speed
     print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather[('wind_speed', 10)].mean():.2f} m/s")
@@ -89,7 +91,7 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
 
     # Wind + Gas case
     wind_capacity = required_turbines * turbine.nominal_power / 1e3  # in kW
-    battery_capacity = demand_in_kw * WIND_BATTERY_STORAGE_HOURS  # Battery storage in kWh
+    battery_capacity = demand_in_kw * config.WIND_BATTERY_STORAGE_HOURS  # Battery storage in kWh
     gas_capacity = demand_in_kw
     system_cost = calculate_system_cost(wind_capacity, battery_capacity, gas_capacity)
 
@@ -103,16 +105,12 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     print("\nCost Analysis:")
     print(f"WACC: {wacc:.4f}")
 
-    print(f"\nWind + Gas System (with {WIND_BATTERY_STORAGE_HOURS}h battery storage):")
+    print(f"\nWind + Gas System (with {config.WIND_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${system_cost:,.0f}")
     print(f"LCOE: ${system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
     print(f"Fraction of energy from wind: {1 - gas_fraction:.2%}")
     
-    if plot:
-        plot_energy_generated(sorted_daily_generated, required_turbines, daily_usage, f"({latitude}, {longitude})")
-        plot_capex_breakdown(wind_capacity, battery_capacity, gas_capacity, f"({latitude}, {longitude})")
-
     results = {
         "lcoe": system_lcoe,
         "wind_fraction": 1 - gas_fraction,
@@ -129,28 +127,14 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
         "capex_breakdown_data": {
             'components': ['Wind Turbines', 'Battery Storage', 'Gas'],
             'values': [
-                wind_capacity * WIND_COST_PER_KW / 1e6,  # Convert to millions
-                battery_capacity * BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
-                gas_capacity * OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
+                wind_capacity * config.WIND_COST_PER_KW / 1e6,  # Convert to millions
+                battery_capacity * config.BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
+                gas_capacity * config.OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
             ]
         },
         "total_capex": system_cost / 1e6,  # Convert to millions
         "wacc": wacc
     }
-
-        # Check if all arrays in energy_generated_data have the same length
-    wind_generated_len = len(results['energy_generated_data']['wind_generated'])
-    gas_generated_len = len(results['energy_generated_data']['gas_generated'])
-    if wind_generated_len != gas_generated_len:
-        raise ValueError(f"Mismatch in energy output data lengths: wind_generated ({wind_generated_len}) != gas_generated ({gas_generated_len})")
-
-    # Add this debugging code
-    wind_generated_len = len(results['energy_generated_data']['wind_generated'])
-    gas_generated_len = len(results['energy_generated_data']['gas_generated'])
-    print(f"Wind output length: {wind_generated_len}")
-    print(f"Gas output length: {gas_generated_len}")
-    if wind_generated_len != gas_generated_len:
-        raise ValueError(f"Mismatch in energy output data lengths: wind_generated ({wind_generated_len}) != gas_generated ({gas_generated_len})")
 
     return results
 
@@ -174,9 +158,9 @@ def plot_energy_generated(sorted_daily_generated, required_turbines, daily_usage
     plt.show()
 
 def plot_capex_breakdown(wind_capacity, battery_capacity, gas_capacity, location):
-    wind_capex = wind_capacity * WIND_COST_PER_KW
-    battery_capex = battery_capacity * BATTERY_COST_PER_KWH
-    gas_capex = gas_capacity * OCGT_CAPEX_PER_KW
+    wind_capex = wind_capacity * config.WIND_COST_PER_KW
+    battery_capex = battery_capacity * config.BATTERY_COST_PER_KWH
+    gas_capex = gas_capacity * config.OCGT_CAPEX_PER_KW
 
     capex_components = [wind_capex, battery_capex, gas_capex]
     labels = ['Wind Turbines', 'Battery Storage', 'Gas']
@@ -205,5 +189,4 @@ if __name__ == "__main__":
     daily_usage = 24000000  # Daily usage in kWh (24 GWh)
     demand_in_kw = 1000000  # Demand in kW (1 GW)
     
-    analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, plot=True)
-    
+    analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw)

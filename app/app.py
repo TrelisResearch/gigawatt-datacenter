@@ -4,9 +4,9 @@ from solar import analyze_solar_system
 from wind import analyze_wind_energy
 from ccgt import analyze_ccgt
 from solar_wind import analyze_hybrid_system
-import config
 from geopy.geocoders import Nominatim
 import pandas as pd
+from runtime_config import config
 
 def get_coordinates(location):
     geolocator = Nominatim(user_agent="SolarScript/1.0")
@@ -41,29 +41,29 @@ def analyze_energy_systems(lat, lon, demand_gw,
                            equity_premium, debt_premium, debt_ratio, tax_rate):
     
     # Update config values
-    config.SOLAR_COST_PER_KW = solar_cost
-    config.WIND_COST_PER_KW = wind_cost
-    config.BATTERY_COST_PER_KWH = battery_cost
-    config.SOLAR_PANEL_EFFICIENCY = solar_efficiency
-    config.SOLAR_PANEL_DENSITY = solar_density
-    config.NG_PRICE_PER_MMBTU = ng_price
-    config.NG_PRICE_PER_KWH = ng_price / 293.07
-    config.OCGT_EFFICIENCY = ocgt_efficiency
-    config.OCGT_CAPEX_PER_KW = ocgt_capex
-    config.OCGT_OPEX_PER_KWH = ocgt_opex
-    config.CCGT_EFFICIENCY = ccgt_efficiency
-    config.CCGT_CAPEX_PER_KW = ccgt_capex
-    config.CCGT_OPEX_PER_KWH = ccgt_opex
-    config.PROJECT_LIFETIME = project_lifetime
-    config.SOLAR_BATTERY_STORAGE_HOURS = solar_battery_hours
-    config.WIND_BATTERY_STORAGE_HOURS = wind_battery_hours
-    config.CUTOFF_DAY = cutoff_day
-    config.HYBRID_LCOE_THRESHOLD = hybrid_threshold
-    config.EQUITY_PREMIUM = equity_premium / 100
-    config.DEBT_PREMIUM = debt_premium / 100
-    config.DEBT_RATIO = debt_ratio / 100
-    config.EQUITY_RATIO = 1 - (debt_ratio / 100)
-    config.TAX_RATE = tax_rate / 100
+    config.update(
+        SOLAR_COST_PER_KW=solar_cost,
+        WIND_COST_PER_KW=wind_cost,
+        BATTERY_COST_PER_KWH=battery_cost,
+        SOLAR_PANEL_EFFICIENCY=solar_efficiency,
+        SOLAR_PANEL_DENSITY=solar_density,
+        NG_PRICE_PER_MMBTU=ng_price,
+        OCGT_EFFICIENCY=ocgt_efficiency,
+        OCGT_CAPEX_PER_KW=ocgt_capex,
+        OCGT_OPEX_PER_KWH=ocgt_opex,
+        CCGT_EFFICIENCY=ccgt_efficiency,
+        CCGT_CAPEX_PER_KW=ccgt_capex,
+        CCGT_OPEX_PER_KWH=ccgt_opex,
+        PROJECT_LIFETIME=project_lifetime,
+        SOLAR_BATTERY_STORAGE_HOURS=solar_battery_hours,
+        WIND_BATTERY_STORAGE_HOURS=wind_battery_hours,
+        CUTOFF_DAY=cutoff_day,
+        HYBRID_LCOE_THRESHOLD=hybrid_threshold,
+        EQUITY_PREMIUM=equity_premium / 100,
+        DEBT_PREMIUM=debt_premium / 100,
+        DEBT_RATIO=debt_ratio / 100,
+        TAX_RATE=tax_rate / 100
+    )
 
     demand_kw = demand_gw * 1e6
     daily_usage = demand_kw * 24
@@ -404,7 +404,7 @@ with gr.Blocks() as iface:
                 
                 gr.Markdown("### System Parameters")
                 project_lifetime = gr.Slider(minimum=10, maximum=30, value=config.PROJECT_LIFETIME, label="Project Lifetime (years)", info="Expected lifetime of the project")
-                cutoff_day = gr.Slider(minimum=10, maximum=100, value=config.CUTOFF_DAY, label="Cutoff Day", info="Days system should handle without gas")
+                cutoff_day = gr.Slider(minimum=10, maximum=100, value=config.CUTOFF_DAY, label="Cutoff Day", info="Number of days per year where gas backup is needed")
                 hybrid_threshold = gr.Slider(minimum=0.05, maximum=0.3, value=config.HYBRID_LCOE_THRESHOLD, label="Hybrid LCOE Threshold", info="If hybrid solar + wind is not this fraction cheaper than wind or solar alone, defaults to the cheaper of wind OR solar.")
 
                 gr.Markdown("### Financing Parameters")

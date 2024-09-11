@@ -1,4 +1,4 @@
-from config import *
+from runtime_config import config
 
 from pvlib import pvsystem, modelchain, location, iotools
 import numpy as np
@@ -43,7 +43,7 @@ def calculate_daily_generated(ac):
     hour_counter = 0
     daily_generated = []
 
-    for hourly_generated in ac:  # Modified this line
+    for hourly_generated in ac:
         if hour_counter < 24:
             daily_energy_sum += hourly_generated
             hour_counter += 1
@@ -69,27 +69,30 @@ def calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cu
     return required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction
 
 def calculate_system_cost(solar_capacity, battery_capacity=0, gas_capacity=0):
-    solar_cost = solar_capacity * SOLAR_COST_PER_KW
-    battery_cost = battery_capacity * BATTERY_COST_PER_KWH
-    gas_cost = gas_capacity * OCGT_CAPEX_PER_KW
+    solar_cost = solar_capacity * config.SOLAR_COST_PER_KW
+    battery_cost = battery_capacity * config.BATTERY_COST_PER_KWH
+    gas_cost = gas_capacity * config.OCGT_CAPEX_PER_KW
     return solar_cost + battery_cost + gas_cost
 
 def calculate_solar_area(capacity_kw):
-    area_m2 = (capacity_kw * 1000) / (SOLAR_PANEL_EFFICIENCY * SOLAR_PANEL_DENSITY * 1000)
+    area_m2 = (capacity_kw * 1000) / (config.SOLAR_PANEL_EFFICIENCY * config.SOLAR_PANEL_DENSITY * 1000)
     area_km2 = area_m2 / 1_000_000
     ireland_area_km2 = 84421
     percentage_of_ireland = (area_km2 / ireland_area_km2) * 100
     return area_km2, percentage_of_ireland
 
-def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=CUTOFF_DAY):
+def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=None):
+    if cutoff_day is None:
+        cutoff_day = config.CUTOFF_DAY
+
     print(f"Analyzing solar system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     ac = simulate_solar_generated(latitude, longitude)
     daily_generated = calculate_daily_generated(ac)
 
-    required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, CUTOFF_DAY)
+    required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day)
 
-    battery_capacity = demand_in_kw * SOLAR_BATTERY_STORAGE_HOURS
+    battery_capacity = demand_in_kw * config.SOLAR_BATTERY_STORAGE_HOURS
     system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw)
 
     annual_energy_consumed = 365 * daily_usage
@@ -111,7 +114,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     print("\nCost Analysis:")
     print(f"WACC: {wacc:.4f}")
 
-    print(f"\nGas Supported System (with {SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
+    print(f"\nGas Supported System (with {config.SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${system_cost:,.0f}")
     print(f"LCOE: ${system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
@@ -129,9 +132,9 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     capex_breakdown_data = {
         'components': ['Solar Panels', 'Battery Storage', 'Gas'],
         'values': [
-            required_solar_array * SOLAR_COST_PER_KW / 1e6,
-            battery_capacity * BATTERY_COST_PER_KWH / 1e6,
-            demand_in_kw * OCGT_CAPEX_PER_KW / 1e6
+            required_solar_array * config.SOLAR_COST_PER_KW / 1e6,
+            battery_capacity * config.BATTERY_COST_PER_KWH / 1e6,
+            demand_in_kw * config.OCGT_CAPEX_PER_KW / 1e6
         ]
     }
 

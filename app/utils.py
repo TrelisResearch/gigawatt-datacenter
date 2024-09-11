@@ -1,6 +1,6 @@
 import yfinance as yf
 import requests
-import config
+from runtime_config import config
 
 def get_coordinates(city, country):
     """
@@ -33,13 +33,13 @@ def calculate_wacc():
     debt_return = rate_20y + config.DEBT_PREMIUM
     return (equity_return * config.EQUITY_RATIO) + (debt_return * config.DEBT_RATIO * (1 - config.TAX_RATE))
 
-def calculate_lcoe(system_cost, annual_energy_used, annual_gas_energy=0, project_lifetime=config.PROJECT_LIFETIME):
+def calculate_lcoe(system_cost, annual_energy_used, annual_gas_energy=0):
     wacc = calculate_wacc()
     ng_price_per_kwh = config.NG_PRICE_PER_KWH
     ocgt_efficiency = config.OCGT_EFFICIENCY
     ocgt_opex_per_kwh = config.OCGT_OPEX_PER_KWH
 
-    annual_capital_cost = system_cost * (wacc * (1 + wacc)**project_lifetime) / ((1 + wacc)**project_lifetime - 1)
+    annual_capital_cost = system_cost * (wacc * (1 + wacc)**config.PROJECT_LIFETIME) / ((1 + wacc)**config.PROJECT_LIFETIME - 1)
     annual_gas_fuel_cost = annual_gas_energy * (ng_price_per_kwh / ocgt_efficiency + ocgt_opex_per_kwh)
     total_annual_cost = annual_capital_cost + annual_gas_fuel_cost
     return total_annual_cost / annual_energy_used
