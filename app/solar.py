@@ -139,7 +139,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         "lcoe": system_lcoe,
         "solar_fraction": solar_energy_consumed / annual_energy_consumed,
         "gas_fraction": gas_fraction,
-        "capacity_factor": solar_capacity_factor,
+        "solar_capacity_factor": solar_capacity_factor,
         "solar_area_km2": area_km2,
         "solar_area_percentage": percentage,
         "solar_capacity_gw": required_solar_array / 1e6,

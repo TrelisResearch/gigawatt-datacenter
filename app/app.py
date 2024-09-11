@@ -74,19 +74,18 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Solar results
     solar_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Solar Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Solar Capacity Factor', 
-                   'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC',
-                   'Solar Curtailment'],  # Added Solar Curtailment
+                   'Solar Curtailment', 'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
         'Value': [f"${solar_results['lcoe']:.4f}/kWh", 
                   f"{solar_results['solar_fraction']:.2%}",
                   f"{solar_results['gas_fraction']:.2%}",
-                  f"{solar_results['capacity_factor']:.2%}",
+                  f"{solar_results['solar_capacity_factor']:.2%}",
+                  f"{solar_results['solar_curtailment']:.2%}",
                   f"{solar_results['solar_area_km2']:.2f} km² ({solar_results['solar_area_percentage']:.2f}% of Ireland)",
                   f"{solar_results['solar_capacity_gw']:.2f} GW",
                   f"{solar_results['gas_capacity_gw']:.2f} GW",
                   f"${int(solar_results['capex_per_kw']):,.0f} $/kW",
                   f"${solar_results['total_capex']:,.0f} million",
-                  f"{solar_results['wacc']:.1%}",
-                  f"{solar_results['solar_curtailment']:.2%}"]  # Added Solar Curtailment
+                  f"{solar_results['wacc']:.1%}"]
     })
     
     # Update plot styling
@@ -136,16 +135,17 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Wind results
     wind_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Wind Fraction of Energy Used', 'Gas Fraction of Energy Used', 'Wind Capacity Factor', 
-                   'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+                'Wind Curtailment', 'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
         'Value': [f"${wind_results['lcoe']:.4f}/kWh", 
-                  f"{wind_results['wind_fraction']:.2%}",
-                  f"{wind_results['gas_fraction']:.2%}",
-                  f"{wind_results['capacity_factor']:.2%}",
-                  f"{wind_results['wind_capacity_gw']:.2f} GW",
-                  f"{wind_results['gas_capacity_gw']:.2f} GW",
-                  f"${int(wind_results['capex_per_kw']):,.0f} $/kW",
-                  f"${int(wind_results['total_capex']):,.0f} million",
-                  f"{wind_results['wacc']:.1%}"]
+                f"{wind_results['wind_fraction']:.2%}",
+                f"{wind_results['gas_fraction']:.2%}",
+                f"{wind_results['wind_capacity_factor']:.2%}",
+                f"{wind_results['wind_curtailment']:.2%}",
+                f"{wind_results['wind_capacity_gw']:.2f} GW",
+                f"{wind_results['gas_capacity_gw']:.2f} GW",
+                f"${int(wind_results['capex_per_kw']):,.0f} $/kW",
+                f"${int(wind_results['total_capex']):,.0f} million",
+                f"{wind_results['wacc']:.1%}"]
     })
     
     # Wind energy output plot
@@ -286,6 +286,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
             hybrid_results_df, hybrid_energy_fig, hybrid_capex_fig,
             lcoe_vs_solar_fraction_fig)  # Return the Plotly figure instead of an image
 
+import traceback
+
 def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *args):
     try:
         if input_type == "Location":
@@ -307,8 +309,10 @@ def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *a
         
         return analyze_energy_systems(lat, lon, demand_gw, *args)
     except Exception as e:
-        error_message = f"An error occurred: {str(e)}"
-        return error_message, None, None, None, None, None, None, None, None, None, None, None
+        error_message = f"An error occurred: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(error_message)  # Print the error for debugging
+        # Return the error message as the first item, and None for all other outputs
+        return [error_message] + [None] * 11
 
 def update_visibility(choice):
     return (

@@ -26,7 +26,14 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     
     return df
 
-def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=CUTOFF_DAY, start_date="2022-01-01", end_date="2022-12-31"):
+# Calculate system costs
+def calculate_system_cost(wind_capacity, battery_capacity=0, gas_capacity=0):
+    wind_cost = wind_capacity * WIND_COST_PER_KW
+    battery_cost = battery_capacity * BATTERY_COST_PER_KWH
+    gas_cost = gas_capacity * OCGT_CAPEX_PER_KW
+    return wind_cost + battery_cost + gas_cost
+
+def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=CUTOFF_DAY, start_date="2022-01-01", end_date="2022-12-31", plot=False):
     # Remove the get_coordinates function call
     print(f"Analyzing wind energy for coordinates: Latitude {latitude}, Longitude {longitude}")
 
@@ -54,149 +61,96 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     print(sorted_daily_output.describe())
 
     # Calculate required wind turbines
-    if sorted_daily_output.iloc[0] > 0:
-        required_turbines_no_gass = round(daily_usage / (sorted_daily_output.iloc[0] * 1000))
-    else:
-        required_turbines_no_gass = float('inf')
-        print("Warning: There are days with zero wind output. Infinite turbines would be required without gass.")
-
-    required_turbines_with_gass = round(daily_usage / (sorted_daily_output.iloc[cutoff_day] * 1000))
+    required_turbines = round(daily_usage / (sorted_daily_output.iloc[cutoff_day] * 1000))
 
     # Calculate gas input and fraction
     annual_demand = 365 * daily_usage
-    gas_input = max(0, (CUTOFF_DAY * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:CUTOFF_DAY]) * required_turbines_with_gass * 1000)
+    gas_input = max(0, (cutoff_day * demand_in_kw * 24) - sum(sorted_daily_output.iloc[:cutoff_day]) * required_turbines * 1000)
     gas_fraction = gas_input / annual_demand if annual_demand > 0 else 0
 
-    # Calculate average capacity factor (with gass)
-    total_energy_output = sum(sorted_daily_output) * required_turbines_with_gass * 1000  # Total energy in kWh
-    total_capacity = turbine.nominal_power * required_turbines_with_gass / 1e3  # Total capacity in kW
-    capacity_factor = total_energy_output / (total_capacity * 24 * 365) if total_capacity > 0 else 0
+    # Calculate average capacity factor
+    wind_energy_rated = turbine.nominal_power * required_turbines / 1e3  # Total capacity in kW
+    wind_energy_generated = sum(sorted_daily_output) * required_turbines * 1000  # Total energy in kWh
+    wind_energy_consumed = (sum(sorted_daily_output.iloc[:cutoff_day]) + (365-cutoff_day)*sorted_daily_output.iloc[cutoff_day]) * required_turbines * 1000
+    wind_capacity_factor = wind_energy_consumed / (wind_energy_rated * 8760)
+    wind_curtailment = (wind_energy_generated - wind_energy_consumed) / wind_energy_generated
 
-    # Update print statements to use coordinates instead of city
     print(f'\nWind Turbine Requirements for coordinates ({latitude}, {longitude}):')
     print(f'Turbine Type: {turbine.turbine_type}')
     print(f'Rated Power: {turbine.nominal_power/1e3:.2f} kW')
-    print(f'Average Capacity Factor (with gass): {capacity_factor:.2%}')
-    if required_turbines_no_gass != float('inf'):
-        print('Required Wind Turbines (no gass): ', required_turbines_no_gass)
-        print(f'Total Installed Capacity (no gass): {required_turbines_no_gass * turbine.nominal_power/1e3:.2f} kW')
-    else:
-        print('Required Wind Turbines (no gass): Infinite (due to days with no wind)')
-    print('Required Wind Turbines (with gass): ', required_turbines_with_gass)
-    print(f'Total Installed Capacity (with gass): {required_turbines_with_gass * turbine.nominal_power/1e3:.2f} kW')
-    print(f'Fraction handled by gass: {gas_fraction:.2%}')
+    print(f'Wind Capacity Factor: {wind_capacity_factor:.2%}')
+    print(f'Wind Curtailment: {wind_curtailment:.2%}')
+    print('Required Wind Turbines: ', required_turbines)
+    print(f'Total Installed Capacity: {required_turbines * turbine.nominal_power/1e3:.2f} kW')
+    print(f'Fraction handled by gas: {gas_fraction:.2%}')
 
     # Cost analysis
     wacc = calculate_wacc()
 
-    # Calculate system costs
-    def calculate_system_cost(wind_capacity, battery_capacity=0, gas_capacity=0):
-        wind_cost = wind_capacity * WIND_COST_PER_KW
-        battery_cost = battery_capacity * BATTERY_COST_PER_KWH
-        gas_cost = gas_capacity * OCGT_CAPEX_PER_KW
-        return wind_cost + battery_cost + gas_cost
-
-    # Pure wind case
-    pure_wind_capacity = required_turbines_no_gass * turbine.nominal_power / 1e3  # in kW
+    # Wind + Gas case
+    wind_capacity = required_turbines * turbine.nominal_power / 1e3  # in kW
     battery_capacity = demand_in_kw * WIND_BATTERY_STORAGE_HOURS  # Battery storage in kWh
-    pure_wind_cost = calculate_system_cost(pure_wind_capacity, battery_capacity)
-
-    # Gas supported case
-    supported_wind_capacity = required_turbines_with_gass * turbine.nominal_power / 1e3  # in kW
     gas_capacity = demand_in_kw
-    supported_system_cost = calculate_system_cost(supported_wind_capacity, battery_capacity, gas_capacity)
-
-    # Calculate annual energy used (which is equal to the demand)
-    annual_energy_used = 365 * daily_usage  # in kWh
-
-    # Calculate annual energy generated for wind systems
-    pure_wind_energy_generated = sum(daily_output) * required_turbines_no_gass * 1e6  # in kWh
-    supported_wind_energy_generated = sum(daily_output) * required_turbines_with_gass * 1e6  # in kWh
-
-    # Wind energy used is the minimum of generated and demanded
-    pure_wind_energy_used = min(annual_energy_used, pure_wind_energy_generated)
-    supported_wind_energy_used = min(annual_energy_used - gas_input, supported_wind_energy_generated)
+    system_cost = calculate_system_cost(wind_capacity, battery_capacity, gas_capacity)
 
     # Calculate LCOE
-    pure_wind_lcoe = calculate_lcoe(pure_wind_cost, annual_energy_used) if annual_energy_used > 0 else float('inf')
-    supported_system_lcoe = calculate_lcoe(supported_system_cost, annual_energy_used, gas_input) if annual_energy_used > 0 else float('inf')
-
-    # Natural Gas Case (OCGT)
-    def calculate_ng_lcoe(demand_kwh, efficiency, capex_per_kw, opex_per_kwh):
-        capacity_kw = demand_in_kw
-        
-        capex = capacity_kw * capex_per_kw
-        annual_capex = capex * (wacc * (1 + wacc)**PROJECT_LIFETIME) / ((1 + wacc)**PROJECT_LIFETIME - 1)
-        
-        fuel_cost_per_kwh = NG_PRICE_PER_KWH / efficiency
-        annual_fuel_cost = demand_kwh * fuel_cost_per_kwh
-        annual_opex = demand_kwh * opex_per_kwh
-        
-        total_annual_cost = annual_capex + annual_fuel_cost + annual_opex
-        return total_annual_cost / demand_kwh
-
-    ocgt_lcoe = calculate_ng_lcoe(annual_energy_used, OCGT_EFFICIENCY, OCGT_CAPEX_PER_KW, OCGT_OPEX_PER_KWH)
+    system_lcoe = calculate_lcoe(system_cost, annual_demand, gas_input)
 
     # Calculate capex per kW of rated capacity
-    pure_wind_capex_per_kw = calculate_capex_per_kw(pure_wind_cost, demand_in_kw) if demand_in_kw > 0 else float('inf')
-    supported_system_capex_per_kw = calculate_capex_per_kw(supported_system_cost, demand_in_kw) if demand_in_kw > 0 else float('inf')
+    system_capex_per_kw = calculate_capex_per_kw(system_cost, demand_in_kw)
 
     # Print cost analysis results
     print("\nCost Analysis:")
     print(f"WACC: {wacc:.4f}")
 
-    # Convert to USD for comparison
-    usd_eur_rate = 1.1  # Assume 1 EUR = 1.1 USD
-
-    print(f"\nNatural Gas System (OCGT):")
-    print(f"LCOE: ${ocgt_lcoe * usd_eur_rate:.4f}/kWh")
-    print(f"Capex per kW: ${OCGT_CAPEX_PER_KW:.2f}/kW")
-
-    print(f"\nPure Wind System (with {WIND_BATTERY_STORAGE_HOURS}h battery storage):")
-    if required_turbines_no_gass != float('inf'):
-        print(f"Total cost: ${pure_wind_cost:,.0f}")
-        print(f"LCOE: ${pure_wind_lcoe:.4f}/kWh")
-        print(f"Capex per kW: ${pure_wind_capex_per_kw:.2f}/kW")
-        pure_wind_capacity_factor = pure_wind_energy_used / (pure_wind_capacity * 8760)
-        print(f"Wind Capacity Factor: {pure_wind_capacity_factor:.2%}")
-    else:
-        print("Pure wind system is not feasible due to days with zero wind output.")
-
-    print(f"\nGas Supported System (with {WIND_BATTERY_STORAGE_HOURS}h battery storage):")
-    print(f"Total cost: ${supported_system_cost:,.0f}")
-    print(f"LCOE: ${supported_system_lcoe:.4f}/kWh")
-    print(f"Capex per kW: ${supported_system_capex_per_kw:.2f}/kW")
-    supported_wind_capacity_factor = supported_wind_energy_used / (supported_wind_capacity * 8760)
-    print(f"Wind Capacity Factor: {supported_wind_capacity_factor:.2%}")
-    print(f"Fraction of energy from wind: {supported_wind_energy_used / annual_energy_used:.2%}")
-
-    # Update plot functions to use coordinates instead of city
-    plot_energy_output(sorted_daily_output, required_turbines_with_gass, daily_usage, f"({latitude}, {longitude})")
-    plot_capex_breakdown(supported_wind_capacity, battery_capacity, gas_capacity, f"({latitude}, {longitude})")
+    print(f"\nWind + Gas System (with {WIND_BATTERY_STORAGE_HOURS}h battery storage):")
+    print(f"Total cost: ${system_cost:,.0f}")
+    print(f"LCOE: ${system_lcoe:.4f}/kWh")
+    print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
+    print(f"Fraction of energy from wind: {1 - gas_fraction:.2%}")
+    
+    if plot:
+        plot_energy_output(sorted_daily_output, required_turbines, daily_usage, f"({latitude}, {longitude})")
+        plot_capex_breakdown(wind_capacity, battery_capacity, gas_capacity, f"({latitude}, {longitude})")
 
     results = {
-        "lcoe": supported_system_lcoe,
-        "wind_fraction": supported_wind_energy_used / annual_energy_used,
+        "lcoe": system_lcoe,
+        "wind_fraction": 1 - gas_fraction,
         "gas_fraction": gas_fraction,
-        "capacity_factor": capacity_factor,
-        "wind_capacity_gw": supported_wind_capacity / 1e6,
+        "wind_capacity_factor": wind_capacity_factor,
+        "wind_curtailment": wind_curtailment,
+        "wind_capacity_gw": wind_capacity / 1e6,
         "gas_capacity_gw": gas_capacity / 1e6,
-        "capex_per_kw": supported_system_capex_per_kw,
+        "capex_per_kw": system_capex_per_kw,
         "energy_output_data": {
-            'wind_output': sorted_daily_output * required_turbines_with_gass * 1000,
-            'gas_output': np.maximum(daily_usage - sorted_daily_output * required_turbines_with_gass * 1000, 0)
+            'wind_output': sorted_daily_output * required_turbines * 1000,
+            'gas_output': np.maximum(daily_usage - sorted_daily_output * required_turbines * 1000, 0)
         },
         "capex_breakdown_data": {
             'components': ['Wind Turbines', 'Battery Storage', 'Gas'],
             'values': [
-                supported_wind_capacity * WIND_COST_PER_KW / 1e6,  # Convert to millions
+                wind_capacity * WIND_COST_PER_KW / 1e6,  # Convert to millions
                 battery_capacity * BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
                 gas_capacity * OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
             ]
         },
-        "total_capex": supported_system_cost / 1e6,  # Convert to millions
-        "wacc": wacc  # Add this line
+        "total_capex": system_cost / 1e6,  # Convert to millions
+        "wacc": wacc
     }
+
+        # Check if all arrays in energy_output_data have the same length
+    wind_output_len = len(results['energy_output_data']['wind_output'])
+    gas_output_len = len(results['energy_output_data']['gas_output'])
+    if wind_output_len != gas_output_len:
+        raise ValueError(f"Mismatch in energy output data lengths: wind_output ({wind_output_len}) != gas_output ({gas_output_len})")
+
+    # Add this debugging code
+    wind_output_len = len(results['energy_output_data']['wind_output'])
+    gas_output_len = len(results['energy_output_data']['gas_output'])
+    print(f"Wind output length: {wind_output_len}")
+    print(f"Gas output length: {gas_output_len}")
+    if wind_output_len != gas_output_len:
+        raise ValueError(f"Mismatch in energy output data lengths: wind_output ({wind_output_len}) != gas_output ({gas_output_len})")
 
     return results
 
@@ -251,4 +205,5 @@ if __name__ == "__main__":
     daily_usage = 24000000  # Daily usage in kWh (24 GWh)
     demand_in_kw = 1000000  # Demand in kW (1 GW)
     
-    analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw)
+    analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, plot=True)
+    
