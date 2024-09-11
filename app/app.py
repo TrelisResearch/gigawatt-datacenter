@@ -320,7 +320,7 @@ def update_visibility(choice):
         gr.update(visible=(choice == "Coordinates"))
     )
 
-with gr.Blocks() as iface:
+with gr.Blocks(theme=gr.themes.Default()) as iface:
     gr.Markdown("# Gigawatt Data Center - Energy System Analysis", elem_classes="text-2xl")
     gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)", elem_classes="text-xl")
     gr.Markdown("Design approach:", elem_classes="text-xl")
