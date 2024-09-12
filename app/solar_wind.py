@@ -6,8 +6,23 @@ from wind import fetch_open_meteo_data, WindTurbine, ModelChain
 from utils import calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
 def simulate_wind_generated(weather_data):
-    turbine = WindTurbine(turbine_type='E-126/7500', hub_height=135)
-    mc = ModelChain(turbine).run_model(weather_data)
+    turbine = WindTurbine(turbine_type=config.WIND_TURBINE_TYPE, hub_height=config.WIND_TURBINE_HUB_HEIGHT)
+    
+    # Select the wind speed column closest to the turbine's hub height
+    available_heights = [int(col[1]) for col in weather_data.columns if col[0] == 'wind_speed']
+    closest_height = min(available_heights, key=lambda x: abs(x - turbine.hub_height))
+    
+    # Create a new DataFrame with the selected wind speed data
+    weather_selected = pd.DataFrame({
+        ('wind_speed', turbine.hub_height): weather_data[('wind_speed', closest_height)],
+        ('temperature', 2): weather_data[('temperature', 2)],
+        ('pressure', 0): weather_data[('pressure', 0)],
+        ('roughness_length', 0): weather_data[('roughness_length', 0)]
+    })
+
+    mc = ModelChain(turbine)
+    mc.run_model(weather_selected)
+    
     return mc.power_output / turbine.nominal_power  # Normalize to per kW output
 
 def calculate_wind_daily_generated(wind_generated):
@@ -209,10 +224,10 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
     }
 
 if __name__ == "__main__":
-    latitude = 26.14
-    longitude = -81.79
+    latitude = 32.31
+    longitude = -111.08
     demand_in_kw = 1000000  # 1 GW
     daily_consumption = 24000000  # 24 GWh
     
     result = analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption)
-    # print(result)
+    print(result)

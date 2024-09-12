@@ -8,13 +8,12 @@ import requests
 from utils import calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
 def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
-    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,temperature_2m,pressure_msl"
+    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,windspeed_100m,windspeed_180m,temperature_2m,pressure_msl"
     response = requests.get(url)
     data = response.json()
     
-    # Print diagnostic information
     print(f"API URL: {url}")
-    print(f"First few wind speed values: {data['hourly']['windspeed_10m'][:5]}")
+    print(f"Available variables: {data['hourly'].keys()}")
     
     df = pd.DataFrame({
         ('wind_speed', 10): data['hourly']['windspeed_10m'],
@@ -22,6 +21,13 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
         ('pressure', 0): data['hourly']['pressure_msl'],
         ('roughness_length', 0): [0.1] * len(data['hourly']['time']),  # Estimate roughness length
     })
+    
+    # Add wind speeds for other heights if available
+    if 'windspeed_100m' in data['hourly']:
+        df[('wind_speed', 100)] = data['hourly']['windspeed_100m']
+    if 'windspeed_180m' in data['hourly']:
+        df[('wind_speed', 180)] = data['hourly']['windspeed_180m']
+    
     df.index = pd.to_datetime(data['hourly']['time'])
     
     return df
@@ -39,17 +45,31 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
 
     print(f"Analyzing wind energy for coordinates: Latitude {latitude}, Longitude {longitude}")
 
+    # Specification of wind turbine
+    turbine = WindTurbine(turbine_type=config.WIND_TURBINE_TYPE, hub_height=config.WIND_TURBINE_HUB_HEIGHT)
+
     # Fetch weather data
     weather = fetch_open_meteo_data(latitude, longitude, "2022-01-01", "2022-12-31")
 
-    # Print average wind speed
-    print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather[('wind_speed', 10)].mean():.2f} m/s")
+    # Select the wind speed column closest to the turbine's hub height
+    available_heights = [10, 50, 100, 180]
+    closest_height = min(available_heights, key=lambda x: abs(x - turbine.hub_height))
+    
+    print(f"Using wind speed data from {closest_height}m for {turbine.hub_height}m hub height")
 
-    # Specification of wind turbine
-    turbine = WindTurbine(turbine_type='E-126/7500', hub_height=135)
+    # Create a new DataFrame with the selected wind speed data
+    weather_selected = pd.DataFrame({
+        ('wind_speed', turbine.hub_height): weather[('wind_speed', closest_height)],
+        ('temperature', 2): weather[('temperature', 2)],
+        ('pressure', 0): weather[('pressure', 0)],
+        ('roughness_length', 0): weather[('roughness_length', 0)]
+    })
+
+    # Print average wind speed
+    print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather_selected[('wind_speed', turbine.hub_height)].mean():.2f} m/s")
 
     # ModelChain setup and run
-    mc = ModelChain(turbine).run_model(weather)
+    mc = ModelChain(turbine).run_model(weather_selected)
     turbine.power_output = mc.power_output
 
     # Calculate daily energy output
