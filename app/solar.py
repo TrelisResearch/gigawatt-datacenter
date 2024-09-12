@@ -156,8 +156,8 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     }
 
 if __name__ == "__main__":
-    latitude = 52.26
-    longitude = -7.12
+    latitude = 53
+    longitude = -8
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
     

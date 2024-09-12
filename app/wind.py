@@ -8,7 +8,7 @@ import requests
 from utils import calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
 def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
-    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,windspeed_100m,windspeed_180m,temperature_2m,pressure_msl"
+    url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,windspeed_100m,temperature_2m,pressure_msl&wind_speed_unit=ms"
     response = requests.get(url)
     data = response.json()
     
@@ -25,8 +25,6 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     # Add wind speeds for other heights if available
     if 'windspeed_100m' in data['hourly']:
         df[('wind_speed', 100)] = data['hourly']['windspeed_100m']
-    if 'windspeed_180m' in data['hourly']:
-        df[('wind_speed', 180)] = data['hourly']['windspeed_180m']
     
     df.index = pd.to_datetime(data['hourly']['time'])
     
@@ -52,7 +50,7 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     weather = fetch_open_meteo_data(latitude, longitude, "2022-01-01", "2022-12-31")
 
     # Select the wind speed column closest to the turbine's hub height
-    available_heights = [10, 50, 100, 180]
+    available_heights = [10, 100]
     closest_height = min(available_heights, key=lambda x: abs(x - turbine.hub_height))
     
     print(f"Using wind speed data from {closest_height}m for {turbine.hub_height}m hub height")
@@ -204,8 +202,8 @@ def plot_capex_breakdown(wind_capacity, battery_capacity, gas_capacity, location
     plt.show()
 
 if __name__ == "__main__":
-    latitude = 29.22
-    longitude = -98.75
+    latitude = 53
+    longitude = -8
     daily_usage = 24000000  # Daily usage in kWh (24 GWh)
     demand_in_kw = 1000000  # Demand in kW (1 GW)
     

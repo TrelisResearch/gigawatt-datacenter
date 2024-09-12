@@ -224,8 +224,8 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
     }
 
 if __name__ == "__main__":
-    latitude = 32.31
-    longitude = -111.08
+    latitude = 53
+    longitude = -8
     demand_in_kw = 1000000  # 1 GW
     daily_consumption = 24000000  # 24 GWh
     
