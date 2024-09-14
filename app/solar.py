@@ -59,7 +59,7 @@ def calculate_daily_generated(ac):
 
 def calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day):
     required_solar_array = round(daily_usage / (daily_generated[cutoff_day:][0]))
-    gas_energy_generated = ((50 * demand_in_kw * 24) - sum(daily_generated[:cutoff_day])*required_solar_array)
+    gas_energy_generated = sum(max(0, daily_usage - daily * required_solar_array) for daily in daily_generated[:cutoff_day])
     gas_energy_consumed = gas_energy_generated
     solar_energy_generated = (sum(daily_generated[:cutoff_day]) + sum(daily_generated[cutoff_day:]))*required_solar_array
     solar_energy_consumed = (sum(daily_generated[:cutoff_day]) + daily_generated[cutoff_day]*(365-cutoff_day))*required_solar_array
