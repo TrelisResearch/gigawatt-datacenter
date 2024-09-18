@@ -4,6 +4,8 @@ from pvlib import pvsystem, modelchain, location, iotools
 import numpy as np
 from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
 
+WACC = calculate_wacc()
+
 def get_location_data(city_name, country_name, locations):
     if city_name in locations:
         latitude = locations[city_name]['latitude']
@@ -81,7 +83,7 @@ def calculate_solar_area(capacity_kw):
     percentage_of_ireland = (area_km2 / ireland_area_km2) * 100
     return area_km2, percentage_of_ireland
 
-def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=None):
+def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_day=None, wacc=WACC):
     if cutoff_day is None:
         cutoff_day = config.CUTOFF_DAY
 
@@ -103,7 +105,6 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     else:
         print("Energy balance check failed: Total energy generated does not equal annual energy consumed.")
 
-    wacc = calculate_wacc()
     system_lcoe = calculate_lcoe(system_cost, annual_energy_consumed, gas_energy_consumed)
     system_capex_per_kw = calculate_capex_per_kw(system_cost, demand_in_kw)
 
