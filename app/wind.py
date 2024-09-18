@@ -1,15 +1,31 @@
 from runtime_config import config
-
 from windpowerlib import ModelChain, WindTurbine
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import requests
+import math
 from utils import calculate_wacc, calculate_lcoe, calculate_capex_per_kw
+from functools import lru_cache
+
+WIND_TURBINE = WindTurbine(turbine_type=config.WIND_TURBINE_TYPE, hub_height=config.WIND_TURBINE_HUB_HEIGHT)
+
+# Cost analysis
+WACC = calculate_wacc()
+
+@lru_cache(maxsize=None)
+def get_processed_weather_data(latitude, longitude, start_date, end_date):
+    processed_weather_data = fetch_open_meteo_data(latitude, longitude, start_date, end_date)
+    return processed_weather_data
 
 def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     url = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date}&end_date={end_date}&hourly=windspeed_10m,windspeed_100m,temperature_2m,pressure_msl&wind_speed_unit=ms"
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"API request failed: {e}")
+        return None
     data = response.json()
     
     print(f"API URL: {url}")
@@ -18,7 +34,7 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     df = pd.DataFrame({
         ('wind_speed', 10): data['hourly']['windspeed_10m'],
         ('temperature', 2): [t + 273.15 for t in data['hourly']['temperature_2m']],  # Convert to Kelvin
-        ('pressure', 0): data['hourly']['pressure_msl'],
+        ('pressure', 0): [p*100 for p in data['hourly']['pressure_msl']], # Convert to Pascals
         ('roughness_length', 0): [0.1] * len(data['hourly']['time']),  # Estimate roughness length
     })
     
@@ -37,41 +53,41 @@ def calculate_system_cost(wind_capacity, battery_capacity=0, gas_capacity=0):
     gas_cost = gas_capacity * config.OCGT_CAPEX_PER_KW
     return wind_cost + battery_cost + gas_cost
 
-def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=None):
+def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=None, wacc=WACC):
     if cutoff_day is None:
         cutoff_day = config.CUTOFF_DAY
 
     print(f"Analyzing wind energy for coordinates: Latitude {latitude}, Longitude {longitude}")
 
-    # Specification of wind turbine
-    turbine = WindTurbine(turbine_type=config.WIND_TURBINE_TYPE, hub_height=config.WIND_TURBINE_HUB_HEIGHT)
-
     # Fetch weather data
-    weather = fetch_open_meteo_data(latitude, longitude, "2022-01-01", "2022-12-31")
+    weather = get_processed_weather_data(latitude, longitude, "2022-01-01", "2022-12-31")
+    if weather is None:
+        print("Failed to fetch weather data.")
+        return {}
 
     # Select the wind speed column closest to the turbine's hub height
     available_heights = [10, 100]
-    closest_height = min(available_heights, key=lambda x: abs(x - turbine.hub_height))
+    closest_height = min(available_heights, key=lambda x: abs(x - WIND_TURBINE.hub_height))
     
-    print(f"Using wind speed data from {closest_height}m for {turbine.hub_height}m hub height")
+    print(f"Using wind speed data from {closest_height}m for {WIND_TURBINE.hub_height}m hub height")
 
     # Create a new DataFrame with the selected wind speed data
     weather_selected = pd.DataFrame({
-        ('wind_speed', turbine.hub_height): weather[('wind_speed', closest_height)],
+        ('wind_speed', WIND_TURBINE.hub_height): weather[('wind_speed', closest_height)],
         ('temperature', 2): weather[('temperature', 2)],
         ('pressure', 0): weather[('pressure', 0)],
         ('roughness_length', 0): weather[('roughness_length', 0)]
     })
 
     # Print average wind speed
-    print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather_selected[('wind_speed', turbine.hub_height)].mean():.2f} m/s")
+    print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather_selected[('wind_speed', WIND_TURBINE.hub_height)].mean():.2f} m/s")
 
     # ModelChain setup and run
-    mc = ModelChain(turbine).run_model(weather_selected)
-    turbine.power_output = mc.power_output
+    mc = ModelChain(WIND_TURBINE).run_model(weather_selected)
+    WIND_TURBINE.power_output = mc.power_output
 
     # Calculate daily energy output
-    daily_generated = turbine.power_output.resample('D').sum() / 1e6  # Convert to MWh
+    daily_generated = WIND_TURBINE.power_output.resample('D').sum() / 1e6  # Convert to MWh
 
     # Sort daily output for analysis
     sorted_daily_generated = daily_generated.sort_values()
@@ -80,8 +96,12 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     print(f"Daily output statistics for coordinates ({latitude}, {longitude}):")
     print(sorted_daily_generated.describe())
 
+    if cutoff_day >= len(sorted_daily_generated):
+        print(f"cutoff_day ({cutoff_day}) exceeds the number of available data days ({len(sorted_daily_generated)}).")
+        return {}
+
     # Calculate required wind turbines
-    required_turbines = round(daily_usage / (sorted_daily_generated.iloc[cutoff_day] * 1000))
+    required_turbines = math.ceil(daily_usage / (sorted_daily_generated.iloc[cutoff_day] * 1000))
 
     # Calculate gas input and fraction
     annual_demand = 365 * daily_usage
@@ -89,26 +109,23 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     gas_fraction = gas_input / annual_demand if annual_demand > 0 else 0
 
     # Calculate average capacity factor
-    wind_energy_rated = turbine.nominal_power * required_turbines / 1e3  # Total capacity in kW
+    wind_energy_rated = WIND_TURBINE.nominal_power * required_turbines / 1e3  # Total capacity in kW
     wind_energy_generated = sum(sorted_daily_generated) * required_turbines * 1000  # Total energy in kWh
     wind_energy_consumed = (sum(sorted_daily_generated.iloc[:cutoff_day]) + (365-cutoff_day)*sorted_daily_generated.iloc[cutoff_day]) * required_turbines * 1000
     wind_capacity_factor = wind_energy_consumed / (wind_energy_rated * 8760)
     wind_curtailment = (wind_energy_generated - wind_energy_consumed) / wind_energy_generated
 
     print(f'\nWind Turbine Requirements for coordinates ({latitude}, {longitude}):')
-    print(f'Turbine Type: {turbine.turbine_type}')
-    print(f'Rated Power: {turbine.nominal_power/1e3:.2f} kW')
+    print(f'Turbine Type: {WIND_TURBINE.turbine_type}')
+    print(f'Rated Power: {WIND_TURBINE.nominal_power/1e3:.2f} kW')
     print(f'Wind Capacity Factor: {wind_capacity_factor:.2%}')
     print(f'Wind Curtailment: {wind_curtailment:.2%}')
     print('Required Wind Turbines: ', required_turbines)
-    print(f'Total Installed Capacity: {required_turbines * turbine.nominal_power/1e3:.2f} kW')
+    print(f'Total Installed Capacity: {required_turbines * WIND_TURBINE.nominal_power/1e3:.2f} kW')
     print(f'Fraction handled by gas: {gas_fraction:.2%}')
 
-    # Cost analysis
-    wacc = calculate_wacc()
-
     # Wind + Gas case
-    wind_capacity = required_turbines * turbine.nominal_power / 1e3  # in kW
+    wind_capacity = required_turbines * WIND_TURBINE.nominal_power / 1e3  # in kW
     battery_capacity = demand_in_kw * config.WIND_BATTERY_STORAGE_HOURS  # Battery storage in kWh
     gas_capacity = demand_in_kw
     system_cost = calculate_system_cost(wind_capacity, battery_capacity, gas_capacity)
@@ -121,7 +138,7 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
 
     # Print cost analysis results
     print("\nCost Analysis:")
-    print(f"WACC: {wacc:.4f}")
+    print(f"WACC: {WACC:.4f}")
 
     print(f"\nWind + Gas System (with {config.WIND_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Total cost: ${system_cost:,.0f}")
@@ -153,8 +170,8 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
         "total_capex": system_cost / 1e6,  # Convert to millions
         "wacc": wacc,
         "number_of_turbines": required_turbines,  # Add this line
-        "turbine_type": turbine.turbine_type,  # Add this line
-        "turbine_nominal_power": turbine.nominal_power / 1e3  # Add this line, convert to MW
+        "turbine_type": WIND_TURBINE.turbine_type,  # Add this line
+        "turbine_nominal_power": WIND_TURBINE.nominal_power / 1e3  # Add this line, convert to MW
     }
 
     return results

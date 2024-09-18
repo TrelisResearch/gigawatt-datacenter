@@ -58,8 +58,8 @@ def calculate_daily_generated(ac):
     return sorted(daily_generated)
 
 def calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day):
-    required_solar_array = round(daily_usage / (daily_generated[cutoff_day:][0]))
-    gas_energy_generated = sum(max(0, daily_usage - daily * required_solar_array) for daily in daily_generated[:cutoff_day])
+    required_solar_array = round(daily_usage / (daily_generated[cutoff_day]))
+    gas_energy_generated = np.sum(np.maximum(0, daily_usage - np.array(daily_generated[:cutoff_day]) * required_solar_array))
     gas_energy_consumed = gas_energy_generated
     solar_energy_generated = (sum(daily_generated[:cutoff_day]) + sum(daily_generated[cutoff_day:]))*required_solar_array
     solar_energy_consumed = (sum(daily_generated[:cutoff_day]) + daily_generated[cutoff_day]*(365-cutoff_day))*required_solar_array
@@ -98,7 +98,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     annual_energy_consumed = 365 * daily_usage
 
     total_energy_generated = solar_energy_consumed + gas_energy_consumed
-    if total_energy_generated == annual_energy_consumed:
+    if np.isclose(total_energy_generated, annual_energy_consumed, atol=1e-2):
         print("Energy balance check passed: Total energy generated equals annual energy consumed.")
     else:
         print("Energy balance check failed: Total energy generated does not equal annual energy consumed.")
