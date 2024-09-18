@@ -12,12 +12,16 @@ def simulate_wind_generated(weather_data):
     available_heights = [int(col[1]) for col in weather_data.columns if col[0] == 'wind_speed']
     closest_height = min(available_heights, key=lambda x: abs(x - turbine.hub_height))
     
-    # Create a new DataFrame with the selected wind speed data
+    weather_columns = {
+        'wind_speed': closest_height,
+        'temperature': 2,
+        'pressure': 0,
+        'roughness_length': 0
+    }
+    
     weather_selected = pd.DataFrame({
-        ('wind_speed', turbine.hub_height): weather_data[('wind_speed', closest_height)],
-        ('temperature', 2): weather_data[('temperature', 2)],
-        ('pressure', 0): weather_data[('pressure', 0)],
-        ('roughness_length', 0): weather_data[('roughness_length', 0)]
+        (col, turbine.hub_height if col == 'wind_speed' else height): weather_data[(col, height)]
+        for col, height in weather_columns.items()
     })
 
     mc = ModelChain(turbine)
@@ -28,8 +32,13 @@ def simulate_wind_generated(weather_data):
 def calculate_wind_daily_generated(wind_generated):
     return wind_generated.resample('D').sum()  # Daily sum of kWh per kW of capacity
 
-def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, cutoff_day=None):
+def calculate_capacity_factor(energy_consumed, capacity, hours):
+    return energy_consumed / (capacity * hours) if capacity > 0 else 0
 
+def calculate_curtailment(generated, consumed):
+    return (generated - consumed) / generated if generated > 0 else 0
+
+def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, cutoff_day=None, wacc=None):
     if wacc is None:
         wacc = calculate_wacc()
     if cutoff_day is None:
@@ -37,26 +46,23 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
 
     print(f"Analyzing hybrid system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
-    # Simulate solar output
+    # Simulate solar and wind output
     solar_generated = simulate_solar_generated(latitude, longitude)
     solar_daily = pd.Series(calculate_solar_daily_generated(solar_generated))
 
-    # Fetch weather data and simulate wind output
     weather_data = fetch_open_meteo_data(latitude, longitude, "2022-01-01", "2022-12-31")
     wind_generated = simulate_wind_generated(weather_data)
     wind_daily = calculate_wind_daily_generated(wind_generated)
 
     # Ensure both series have the same length and index
-    start_date = "2022-01-01"
-    end_date = "2022-12-31"
-    date_range = pd.date_range(start=start_date, end=end_date, freq='D')
-    
+    date_range = pd.date_range(start="2022-01-01", end="2022-12-31", freq='D')
     solar_daily = pd.Series(solar_daily.values, index=date_range[:len(solar_daily)])
     wind_daily = wind_daily.reindex(date_range)
+
     if wind_daily.isna().any():
         print("There are days that are not well defined in the wind daily output.")
 
-    gamma_values = np.linspace(0, 1, 5)  # Increase the number of points for a smoother curve
+    gamma_values = np.linspace(0, 1, 5)  # Increased number of points for smoother curve
     results = []
 
     for gamma in gamma_values:
@@ -71,8 +77,6 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
         wind_generated = wind_daily * wind_capacity
         combined_daily = solar_generated + wind_generated
 
-        daily_consumption_series = pd.Series([daily_consumption] * len(combined_daily), index=combined_daily.index)
-        
         solar_consumed = np.zeros_like(solar_generated.values)
         wind_consumed = np.zeros_like(wind_generated.values)
         
@@ -81,29 +85,24 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
         sorted_indices = np.argsort(combined_generation.values)
 
         for i, idx in enumerate(sorted_indices):
-            if i < cutoff_day:
-                # Before cutoff: consume all generation up to daily consumption
-                solar_consumed[idx] = min(solar_generated.values[idx], daily_consumption)
-                wind_consumed[idx] = min(wind_generated.values[idx], daily_consumption - solar_consumed[idx])
+            total_generated = solar_generated.values[idx] + wind_generated.values[idx]
+            if i < cutoff_day or total_generated <= daily_consumption:
+                solar_consumed[idx] = solar_generated.values[idx]
+                wind_consumed[idx] = wind_generated.values[idx]
             else:
-                # After cutoff: curtail generation ratably
-                total_generated = solar_generated.values[idx] + wind_generated.values[idx]
-                if total_generated > daily_consumption:
-                    curtailment_factor = daily_consumption / total_generated
-                    solar_consumed[idx] = solar_generated.values[idx] * curtailment_factor
-                    wind_consumed[idx] = wind_generated.values[idx] * curtailment_factor
-                else:
-                    solar_consumed[idx] = solar_generated.values[idx]
-                    wind_consumed[idx] = wind_generated.values[idx]
+                curtailment_factor = daily_consumption / total_generated
+                solar_consumed[idx] = solar_generated.values[idx] * curtailment_factor
+                wind_consumed[idx] = wind_generated.values[idx] * curtailment_factor
 
         solar_energy_consumed = solar_consumed.sum()
         wind_energy_consumed = wind_consumed.sum()
-        solar_capacity_factor = solar_energy_consumed / (solar_capacity * 8760) if solar_capacity > 0 else 0
-        wind_capacity_factor = wind_energy_consumed / (wind_capacity * 8760) if wind_capacity > 0 else 0
+        
+        year_hours = len(date_range) * 24
+        solar_capacity_factor = calculate_capacity_factor(solar_energy_consumed, solar_capacity, year_hours)
+        wind_capacity_factor = calculate_capacity_factor(wind_energy_consumed, wind_capacity, year_hours)
 
-        # Calculate curtailment
-        solar_curtailment = (solar_generated.sum() - solar_energy_consumed) / solar_generated.sum() if solar_generated.sum() > 0 else 0
-        wind_curtailment = (wind_generated.sum() - wind_energy_consumed) / wind_generated.sum() if wind_generated.sum() > 0 else 0
+        solar_curtailment = calculate_curtailment(solar_generated.sum(), solar_energy_consumed)
+        wind_curtailment = calculate_curtailment(wind_generated.sum(), wind_energy_consumed)
 
         gas_energy = max(0, (cutoff_day * demand_in_kw * 24) - sum(sorted_combined_daily_normalized.iloc[:cutoff_day]) * required_capacity)
         annual_demand = 365 * daily_consumption
@@ -173,10 +172,8 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
     energy_generated_data = {
         'solar_generated': (solar_daily * best_result["solar_capacity"]).values,
         'wind_generated': (wind_daily * best_result["wind_capacity"]).values,
-        'gas_generated': np.full(len(solar_daily), daily_consumption) - (solar_daily * best_result["solar_capacity"] + wind_daily * best_result["wind_capacity"]).values
+        'gas_generated': np.maximum(np.full(len(solar_daily), daily_consumption) - (solar_daily * best_result["solar_capacity"] + wind_daily * best_result["wind_capacity"]).values, 0)
     }
-
-    energy_generated_data['gas_generated'] = np.maximum(energy_generated_data['gas_generated'], 0)
 
     # Sort the combined output
     combined_generated = energy_generated_data['solar_generated'] + energy_generated_data['wind_generated']
@@ -231,4 +228,4 @@ if __name__ == "__main__":
     daily_consumption = 24000000  # 24 GWh
     
     result = analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption)
-    print(result)
+    # print(result)

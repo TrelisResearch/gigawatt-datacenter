@@ -411,7 +411,7 @@ with gr.Blocks(theme=gr.themes.Default()) as iface:
                 
                 gr.Markdown("### System Parameters")
                 project_lifetime = gr.Slider(minimum=10, maximum=30, value=config.PROJECT_LIFETIME, label="Project Lifetime (years)", info="Expected lifetime of the project")
-                cutoff_day = gr.Slider(minimum=10, maximum=100, value=config.CUTOFF_DAY, label="Cutoff Day", info="Number of days per year where gas backup is needed")
+                cutoff_day = gr.Slider(minimum=0, maximum=365, value=config.CUTOFF_DAY, label="Cutoff Day", info="Number of days per year where gas backup is needed")
                 hybrid_threshold = gr.Slider(minimum=0.05, maximum=0.3, value=config.HYBRID_LCOE_THRESHOLD, label="Hybrid LCOE Threshold", info="If hybrid solar + wind is not this fraction cheaper than wind or solar alone, defaults to the cheaper of wind OR solar.")
 
                 gr.Markdown("### Financing Parameters")
