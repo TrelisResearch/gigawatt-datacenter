@@ -3,6 +3,8 @@
 >[!TIP]
 >To report bugs, please create an issue.
 
+An analysis tool for powering data centers with solar, wind and gas.
+
 ## Commercial Usage
 For commercial usage requests, you can fill out this form [here](https://forms.gle/rp3yCUztKdKW2Gcx8).
 
