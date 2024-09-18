@@ -6,6 +6,7 @@ BATTERY_COST_PER_KWH = 250  # $/kWh
 # Solar parameters
 SOLAR_PANEL_EFFICIENCY = 0.2
 SOLAR_PANEL_DENSITY = 0.4 # m2 of area per m2 of panels
+SOLAR_IRRADIANCE = 1000  # W/m² (standard solar irradiance)
 
 # Natural Gas parameters
 NG_PRICE_PER_MMBTU = 20  # $/MMBtu (typical European price)

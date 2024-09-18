@@ -75,7 +75,7 @@ def calculate_system_cost(solar_capacity, battery_capacity=0, gas_capacity=0):
     return solar_cost + battery_cost + gas_cost
 
 def calculate_solar_area(capacity_kw):
-    area_m2 = (capacity_kw * 1000) / (config.SOLAR_PANEL_EFFICIENCY * config.SOLAR_PANEL_DENSITY * 1000)
+    area_m2 = (capacity_kw * 1000) / (config.SOLAR_IRRADIANCE * config.SOLAR_PANEL_EFFICIENCY * config.SOLAR_PANEL_DENSITY)
     area_km2 = area_m2 / 1_000_000
     ireland_area_km2 = 84421
     percentage_of_ireland = (area_km2 / ireland_area_km2) * 100
@@ -115,6 +115,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     print(f"WACC: {wacc:.4f}")
 
     print(f"\nGas Supported System (with {config.SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
+    print(f"Solar Capacity: {required_solar_array/1e6} GW")
     print(f"Total cost: ${system_cost:,.0f}")
     print(f"LCOE: ${system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
