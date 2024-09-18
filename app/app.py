@@ -8,6 +8,7 @@ from geopy.geocoders import Nominatim
 import pandas as pd
 from runtime_config import config
 from gradio.themes import Base
+import plotly.express as px
 
 def get_coordinates(location):
     geolocator = Nominatim(user_agent="SolarScript/1.0")
@@ -290,11 +291,43 @@ def analyze_energy_systems(lat, lon, demand_gw,
         **plot_layout
     )
 
+    # Create summary data for LCOE and Capex per kW comparison
+    summary_data = {
+        'System': ['Solar + Gas', 'Wind + Gas', 'Hybrid', 'CCGT'],
+        'LCOE': [solar_results['lcoe'], wind_results['lcoe'], hybrid_results['lcoe'], ccgt_results['lcoe']],
+        'Capex_per_kW': [solar_results['capex_per_kw'], wind_results['capex_per_kw'], hybrid_results['capex_per_kw'], ccgt_results['capex_per_kw']]
+    }
+
+    # Create LCOE comparison plot
+    lcoe_comparison_fig = px.bar(
+        summary_data,
+        x='System',
+        y='LCOE',
+        title='Levelised Cost of Energy Comparison',
+        labels={'LCOE': 'LCOE ($/kWh)'},
+        color='System',
+        color_discrete_sequence=colors[:4]
+    )
+    lcoe_comparison_fig.update_layout(**plot_layout)
+
+    # Create Capex per kW comparison plot
+    capex_comparison_fig = px.bar(
+        summary_data,
+        x='System',
+        y='Capex_per_kW',
+        title='Capex per kW Comparison',
+        labels={'Capex_per_kW': 'Capex per kW ($/kW)'},
+        color='System',
+        color_discrete_sequence=colors[:4]
+    )
+    capex_comparison_fig.update_layout(**plot_layout)
+
     return (solar_results_df, solar_energy_fig, solar_capex_fig,
             wind_results_df, wind_energy_fig, wind_capex_fig,
             ccgt_results_df, ccgt_cost_fig,
             hybrid_results_df, hybrid_energy_fig, hybrid_capex_fig,
-            lcoe_vs_solar_fraction_fig)  # Return the Plotly figure instead of an image
+            lcoe_vs_solar_fraction_fig,
+            lcoe_comparison_fig, capex_comparison_fig)  # Add these two new figures to the return statement
 
 import traceback
 
@@ -306,23 +339,23 @@ def analyze_energy_systems_wrapper(input_type, location, lat, lon, demand_gw, *a
                 lat, lon = coordinates
                 print(f"Coordinates found for location: {lat}, {lon}")
             else:
-                return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None, None
+                return "Location not found. Please try a more specific location or use latitude and longitude.", None, None, None, None, None, None, None, None, None, None, None, None, None
         elif input_type == "Coordinates":
             coordinates = validate_coordinates(lat, lon)
             if coordinates:
                 lat, lon = coordinates
                 print(f"Using provided coordinates: {lat}, {lon}")
             else:
-                return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None, None
+                return "Invalid latitude or longitude. Please enter valid coordinates.", None, None, None, None, None, None, None, None, None, None, None, None, None
         else:
-            return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None, None
+            return "Please select either location or coordinates input method.", None, None, None, None, None, None, None, None, None, None, None, None, None
         
         return analyze_energy_systems(lat, lon, demand_gw, *args)
     except Exception as e:
         error_message = f"An error occurred: {str(e)}\n\nTraceback:\n{traceback.format_exc()}"
         print(error_message)  # Print the error for debugging
         # Return the error message as the first item, and None for all other outputs
-        return [error_message] + [None] * 11
+        return [error_message] + [None] * 13  # Update this to 13 to account for the two new plots
 
 def update_visibility(choice):
     return (
@@ -334,11 +367,13 @@ with gr.Blocks(theme=Base()) as iface:
     gr.Markdown("# Gigawatt Data Center - Energy System Analysis", elem_classes="text-2xl")
     gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)", elem_classes="text-xl")
     gr.Markdown("Design approach:", elem_classes="text-xl")
-    gr.Markdown("- Select between wind, solar, wind + solar, or gas (combined cycle)", elem_classes="text-lg")
-    gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.", elem_classes="text-lg")
+    gr.Markdown("- Analyse wind + gas, solar + gas, wind + solar + gas, or gas (combined cycle)", elem_classes="text-lg")
     gr.Markdown("- For wind/solar/wind+solar, an open cycle gas turbine is used to balance load for a max of 50 days per year.", elem_classes="text-lg")
-    gr.Markdown("- The solar + wind hybrid system shown is that which minimises the levelised cost of energy. Typically this resolves to a pure solar (+ gas) or pure wind (+ gas) system.", elem_classes="text-lg")
+    gr.Markdown("- The solar + wind + gas hybrid system shown is that optimises the ratio of solar to wind to minimise the levelised cost of energy.", elem_classes="text-lg")
+    gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.", elem_classes="text-lg")
     gr.Markdown("- All $/kW costs are on an installed basis.", elem_classes="text-lg")
+
+    gr.Markdown("**Note: Desktop is recommended for the best experience. To get started, enter a location and click 'Analyse'.**", elem_classes="text-lg font-bold")
 
     input_type = gr.Radio(["Location", "Coordinates"], label="Input Method", value="Location")
     
@@ -368,6 +403,10 @@ with gr.Blocks(theme=Base()) as iface:
     submit_button = gr.Button("Analyse")
 
     with gr.Tabs() as tabs:
+        with gr.Tab("Summary", id="summary"):
+            lcoe_comparison = gr.Plot(label="LCOE Comparison")
+            capex_comparison = gr.Plot(label="Capex per kW Comparison")
+
         with gr.Tab("Solar Analysis Results", id="solar"):
             solar_results = gr.Dataframe(label="Key Results")
             solar_energy_generated = gr.Plot(label="Energy Output")
@@ -388,7 +427,7 @@ with gr.Blocks(theme=Base()) as iface:
             ccgt_results = gr.Dataframe(label="Key Results")
             ccgt_cost_breakdown = gr.Plot(label="Annual Cost Breakdown")
 
-        with gr.Tab("Advanced Settings", id="advanced"):
+        with gr.Tab("Settings", id="advanced"):
             with gr.Column():
                 gr.Markdown("### Battery Parameters")
                 battery_cost = gr.Slider(minimum=100, maximum=500, value=config.BATTERY_COST_PER_KWH, label="Battery Cost ($/kWh)", info="Cost per kWh of battery storage")
@@ -448,10 +487,11 @@ with gr.Blocks(theme=Base()) as iface:
             wind_results, wind_energy_generated, wind_capex_breakdown,
             ccgt_results, ccgt_cost_breakdown,
             hybrid_results, hybrid_energy_generated, hybrid_capex_breakdown,
-            lcoe_vs_solar_fraction_plot
+            lcoe_vs_solar_fraction_plot,
+            lcoe_comparison, capex_comparison
         ]
     )
 
-    iface.load(lambda: gr.Tabs(selected="solar"))
+    iface.load(lambda: gr.Tabs(selected="summary"))
 
 iface.launch()
