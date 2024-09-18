@@ -29,12 +29,13 @@ def calculate_wind_daily_generated(wind_generated):
     return wind_generated.resample('D').sum()  # Daily sum of kWh per kW of capacity
 
 def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, cutoff_day=None):
+
+    if wacc is None:
+        wacc = calculate_wacc()
     if cutoff_day is None:
         cutoff_day = config.CUTOFF_DAY
 
     print(f"Analyzing hybrid system for coordinates: Latitude {latitude}, Longitude {longitude}")
-
-    wacc = calculate_wacc()
 
     # Simulate solar output
     solar_generated = simulate_solar_generated(latitude, longitude)

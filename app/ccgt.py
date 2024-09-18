@@ -2,9 +2,11 @@ from runtime_config import config
 import matplotlib.pyplot as plt
 from utils import calculate_wacc, calculate_capex_per_kw
 
-def calculate_ccgt_lcoe(demand_kwh):
-    wacc = calculate_wacc()
-    capacity_kw = demand_kwh / (24 * 365 * 0.9)  # Assuming 90% capacity factor
+def calculate_ccgt_costs(demand_kwh, demand_in_kw, capacity_factor, wacc=None):
+    if wacc is None:
+        wacc = calculate_wacc()
+    
+    capacity_kw = demand_in_kw / capacity_factor
     
     capex = capacity_kw * config.CCGT_CAPEX_PER_KW
     annual_capex = capex * (wacc * (1 + wacc)**config.PROJECT_LIFETIME) / ((1 + wacc)**config.PROJECT_LIFETIME - 1)
@@ -14,43 +16,38 @@ def calculate_ccgt_lcoe(demand_kwh):
     annual_opex = demand_kwh * config.CCGT_OPEX_PER_KWH
     
     total_annual_cost = annual_capex + annual_fuel_cost + annual_opex
-    return total_annual_cost / demand_kwh
-
-def analyze_ccgt(daily_usage, demand_in_kw):
-    annual_energy_used = 365 * daily_usage  # in kWh
-    ccgt_lcoe = calculate_ccgt_lcoe(annual_energy_used)
-    ccgt_capex = demand_in_kw * config.CCGT_CAPEX_PER_KW
-    ccgt_capex_per_kw_result = calculate_capex_per_kw(ccgt_capex, demand_in_kw)
-
-    wacc = calculate_wacc()
-    annual_capex = ccgt_capex * (wacc * (1 + wacc)**config.PROJECT_LIFETIME) / ((1 + wacc)**config.PROJECT_LIFETIME - 1)
-    fuel_cost = annual_energy_used * (config.NG_PRICE_PER_KWH / config.CCGT_EFFICIENCY)
-    opex = annual_energy_used * config.CCGT_OPEX_PER_KWH
-
-    # Print cost analysis results
-    print("\nCost Analysis for CCGT:")
-    print(f"WACC: {calculate_wacc():.4f}")
-    print(f"LCOE: ${ccgt_lcoe:.4f}/kWh")
-    print(f"Capex per kW: ${ccgt_capex_per_kw_result:.2f}/kW")
-    print(f"Total Capex: ${ccgt_capex:,.0f}")
-
-    results = {
-        'lcoe': ccgt_lcoe,
-        'capex_per_kw': ccgt_capex_per_kw_result,
-        'total_capex': ccgt_capex,
-        'capacity_gw': demand_in_kw / 1e6,
-        'annual_energy_used': annual_energy_used,
+    lcoe = total_annual_cost / demand_kwh
+    
+    capex_per_kw = calculate_capex_per_kw(capex, demand_in_kw)
+    
+    return {
+        'lcoe': lcoe,
+        'capex_per_kw': capex_per_kw,
+        'total_capex': capex,
+        'capacity_gw': capacity_kw / 1e6,
+        'annual_energy_used': demand_kwh,
         'wacc': wacc,
+        'capacity_factor': capacity_factor,
         'cost_breakdown': {
             'components': ['Capital Cost', 'Fuel Cost', 'O&M Cost'],
-            'values': [annual_capex, fuel_cost, opex]
+            'values': [annual_capex, annual_fuel_cost, annual_opex]
         }
     }
 
+def analyze_ccgt(daily_usage, demand_in_kw, capacity_factor):
+    annual_energy_used = 365 * daily_usage  # in kWh
+    results = calculate_ccgt_costs(annual_energy_used, demand_in_kw, capacity_factor)
+    
+    print("\nCost Analysis for CCGT:")
+    print(f"WACC: {results['wacc']:.4f}")
+    print(f"LCOE: ${results['lcoe']:.4f}/kWh")
+    print(f"Capex per kW: ${results['capex_per_kw']:.2f}/kW")
+    print(f"Total Capex: ${results['total_capex']:,.0f}")
+    print(f"Capacity Factor: {results['capacity_factor']:.2f}")
+    
     return results
 
 def plot_ccgt_cost_breakdown(annual_energy_used):
-    wacc = calculate_wacc()
     capex = (annual_energy_used / (24 * 365 * 0.9)) * config.CCGT_CAPEX_PER_KW
     annual_capex = capex * (wacc * (1 + wacc)**config.PROJECT_LIFETIME) / ((1 + wacc)**config.PROJECT_LIFETIME - 1)
     fuel_cost = annual_energy_used * (config.NG_PRICE_PER_KWH / config.CCGT_EFFICIENCY)
@@ -80,5 +77,5 @@ def plot_ccgt_cost_breakdown(annual_energy_used):
 if __name__ == "__main__":
     daily_usage = 24000000  # Daily usage in kWh (24 GWh)
     demand_in_kw = 1000000  # Demand in kW (1 GW)
-    
-    analyze_ccgt(daily_usage, demand_in_kw)
+    capacity_factor = 0.9
+    analyze_ccgt(daily_usage, demand_in_kw, capacity_factor)

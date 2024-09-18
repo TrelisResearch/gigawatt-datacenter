@@ -35,7 +35,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
                            solar_cost, wind_cost, battery_cost, 
                            solar_efficiency, solar_density,
                            ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
-                           ccgt_efficiency, ccgt_capex, ccgt_opex,
+                           ccgt_efficiency, ccgt_capex, ccgt_opex, ccgt_capacity_factor,
                            project_lifetime, solar_battery_hours, wind_battery_hours,
                            cutoff_day, hybrid_threshold,
                            equity_premium, debt_premium, debt_ratio, tax_rate):
@@ -54,6 +54,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
         CCGT_EFFICIENCY=ccgt_efficiency,
         CCGT_CAPEX_PER_KW=ccgt_capex,
         CCGT_OPEX_PER_KWH=ccgt_opex,
+        CCGT_CAPACITY_FACTOR=ccgt_capacity_factor,
         PROJECT_LIFETIME=project_lifetime,
         SOLAR_BATTERY_STORAGE_HOURS=solar_battery_hours,
         WIND_BATTERY_STORAGE_HOURS=wind_battery_hours,
@@ -182,18 +183,19 @@ def analyze_energy_systems(lat, lon, demand_gw,
     )
 
     # CCGT analysis
-    ccgt_results = analyze_ccgt(daily_usage, demand_kw)
+    ccgt_results = analyze_ccgt(daily_usage, demand_kw, ccgt_capacity_factor)
     
     # CCGT results
     ccgt_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Capacity', 'Capex per kW', 'Total Capex', 
-                   'Annual Energy Consumed', 'WACC'],
+                   'Annual Energy Consumed', 'WACC', 'Capacity Factor'],
         'Value': [f"${ccgt_results['lcoe']:.4f}/kWh",
                   f"{ccgt_results['capacity_gw']:.2f} GW",
                   f"${ccgt_results['capex_per_kw']:.2f}/kW",
                   f"${ccgt_results['total_capex']:,.0f}",
                   f"{ccgt_results['annual_energy_used']:,.0f} kWh",
-                  f"{ccgt_results['wacc']:.1%}"]
+                  f"{ccgt_results['wacc']:.1%}",
+                  f"{ccgt_results['capacity_factor']:.2%}"]
     })
     
     # CCGT cost breakdown plot
@@ -405,6 +407,7 @@ with gr.Blocks(theme=gr.themes.Default()) as iface:
                 ccgt_efficiency = gr.Slider(minimum=0.4, maximum=0.7, value=config.CCGT_EFFICIENCY, label="CCGT Efficiency", info="Efficiency of combined cycle gas turbine")
                 ccgt_capex = gr.Slider(minimum=800, maximum=1600, value=config.CCGT_CAPEX_PER_KW, label="CCGT CAPEX ($/kW)", info="Capital expenditure for CCGT")
                 ccgt_opex = gr.Slider(minimum=0.005, maximum=0.03, value=config.CCGT_OPEX_PER_KWH, label="CCGT OPEX ($/kWh)", info="Operating expenditure for CCGT")
+                ccgt_capacity_factor = gr.Slider(minimum=0.1, maximum=1.0, value=config.CCGT_CAPACITY_FACTOR, label="CCGT Capacity Factor", info="Average capacity factor for CCGT plant")
                 
                 gr.Markdown("### System Parameters")
                 project_lifetime = gr.Slider(minimum=10, maximum=30, value=config.PROJECT_LIFETIME, label="Project Lifetime (years)", info="Expected lifetime of the project")
@@ -431,7 +434,7 @@ with gr.Blocks(theme=gr.themes.Default()) as iface:
             solar_cost, wind_cost, battery_cost,
             solar_efficiency, solar_density,
             ng_price, ocgt_efficiency, ocgt_capex, ocgt_opex,
-            ccgt_efficiency, ccgt_capex, ccgt_opex,
+            ccgt_efficiency, ccgt_capex, ccgt_opex, ccgt_capacity_factor,
             project_lifetime, solar_battery_hours, wind_battery_hours,
             cutoff_day, hybrid_threshold,
             equity_premium, debt_premium, debt_ratio, tax_rate
