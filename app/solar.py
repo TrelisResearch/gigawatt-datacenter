@@ -100,7 +100,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day)
 
     battery_capacity = demand_in_kw * config.SOLAR_BATTERY_STORAGE_HOURS
-    system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw, cutoff_day)
+    system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw)
 
     annual_energy_consumed = 365 * daily_usage
 
@@ -143,7 +143,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         'values': [
             required_solar_array * config.SOLAR_COST_PER_KW / 1e6,
             battery_capacity * config.BATTERY_COST_PER_KWH / 1e6,
-            demand_in_kw * config.OCGT_CAPEX_PER_KW / 1e6
+            0 if cutoff_day == 0 else demand_in_kw * config.OCGT_CAPEX_PER_KW / 1e6
         ]
     }
 
