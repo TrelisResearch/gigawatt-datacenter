@@ -365,15 +365,18 @@ def update_visibility(choice):
 
 with gr.Blocks(theme=Base()) as iface:
     gr.Markdown("# Gigawatt Data Center - Energy System Analysis", elem_classes="text-2xl")
-    gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)", elem_classes="text-xl")
+    gr.Markdown("By [Trelis Research](https://Trelis.com/About)", elem_classes="text-xl")
+    gr.Markdown("**Note: Desktop is recommended for the best experience. To get started, enter a location and click 'Analyse'.**", elem_classes="text-lg font-bold")
     gr.Markdown("Design approach:", elem_classes="text-xl")
-    gr.Markdown("- Analyse wind + gas, solar + gas, wind + solar + gas, or gas (combined cycle)", elem_classes="text-lg")
+    gr.Markdown("- Analyse wind + gas, solar + gas, wind + solar + gas, or gas (combined cycle) means of powering datacenters.", elem_classes="text-lg")
     gr.Markdown("- For wind/solar/wind+solar, an open cycle gas turbine is used to balance load for a max of 50 days per year.", elem_classes="text-lg")
     gr.Markdown("- The solar + wind + gas hybrid system shown is that optimises the ratio of solar to wind to minimise the levelised cost of energy.", elem_classes="text-lg")
     gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.", elem_classes="text-lg")
     gr.Markdown("- All $/kW costs are on an installed basis.", elem_classes="text-lg")
 
-    gr.Markdown("**Note: Desktop is recommended for the best experience. To get started, enter a location and click 'Analyse'.**", elem_classes="text-lg font-bold")
+    # Add new information about commercial inquiries and bug reporting
+    gr.Markdown("For commercial inquiries, please fill out [this form](https://forms.gle/rp3yCUztKdKW2Gcx8).", elem_classes="text-lg")
+    gr.Markdown("To report bugs or issues, please create an issue in the [GitHub repository](https://github.com/TrelisResearch/gigawatt-datacenter).", elem_classes="text-lg")
 
     input_type = gr.Radio(["Location", "Coordinates"], label="Input Method", value="Location")
     
@@ -443,7 +446,7 @@ with gr.Blocks(theme=Base()) as iface:
                 wind_battery_hours = gr.Slider(minimum=0, maximum=48, value=config.WIND_BATTERY_STORAGE_HOURS, label="Wind Battery Storage (hours)", info="Hours of battery storage for wind system")
 
                 gr.Markdown("### Gas Parameters")
-                ng_price = gr.Slider(minimum=5, maximum=50, value=config.NG_PRICE_PER_MMBTU, label="Natural Gas Price ($/MMBtu)", info="Price of natural gas")
+                ng_price = gr.Slider(minimum=0.5, maximum=50, value=config.NG_PRICE_PER_MMBTU, label="Natural Gas Price ($/MMBtu)", info="Price of natural gas")
                 ocgt_efficiency = gr.Slider(minimum=0.2, maximum=0.5, value=config.OCGT_EFFICIENCY, label="OCGT Efficiency", info="Efficiency of open cycle gas turbine")
                 ocgt_capex = gr.Slider(minimum=400, maximum=1200, value=config.OCGT_CAPEX_PER_KW, label="OCGT CAPEX ($/kW)", info="Capital expenditure for OCGT")
                 ocgt_opex = gr.Slider(minimum=0.01, maximum=0.05, value=config.OCGT_OPEX_PER_KWH, label="OCGT OPEX ($/kWh)", info="Operating expenditure for OCGT")
