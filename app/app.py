@@ -7,6 +7,7 @@ from solar_wind import analyze_hybrid_system
 from geopy.geocoders import Nominatim
 import pandas as pd
 from runtime_config import config
+from gradio.themes import Base
 
 def get_coordinates(location):
     geolocator = Nominatim(user_agent="SolarScript/1.0")
@@ -329,7 +330,7 @@ def update_visibility(choice):
         gr.update(visible=(choice == "Coordinates"))
     )
 
-with gr.Blocks(theme=gr.themes.Default()) as iface:
+with gr.Blocks(theme=Base()) as iface:
     gr.Markdown("# Gigawatt Data Center - Energy System Analysis", elem_classes="text-2xl")
     gr.Markdown("Built by [Ronan McGovern](http://RonanMcGovern.com/About)", elem_classes="text-xl")
     gr.Markdown("Design approach:", elem_classes="text-xl")
