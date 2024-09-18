@@ -18,7 +18,7 @@ OCGT_CAPEX_PER_KW = 800  # $/kW
 OCGT_OPEX_PER_KWH = 0.02  # $/kWh for operation and maintenance
 
 # Combined Cycle Gas Turbine (CCGT) parameters
-CCGT_EFFICIENCY = 0.60  # 60% efficiency for combined cycle gas turbine
+CCGT_EFFICIENCY = 0.55  # 60% efficiency for combined cycle gas turbine
 CCGT_CAPEX_PER_KW = 1200  # $/kW
 CCGT_OPEX_PER_KWH = 0.01  # $/kWh for operation and maintenance
 CCGT_CAPACITY_FACTOR = 0.7  # 70% capacity factor for CCGT plant
