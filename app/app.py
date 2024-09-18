@@ -368,9 +368,9 @@ with gr.Blocks(theme=Base()) as iface:
     gr.Markdown("By [Trelis Research](https://Trelis.com/About)", elem_classes="text-xl")
     gr.Markdown("**Note: Desktop is recommended for the best experience. To get started, enter a location and click 'Analyse'.**", elem_classes="text-lg font-bold")
     gr.Markdown("Design approach:", elem_classes="text-xl")
-    gr.Markdown("- Analyse wind + gas, solar + gas, wind + solar + gas, or gas (combined cycle) means of powering datacenters.", elem_classes="text-lg")
-    gr.Markdown("- For wind/solar/wind+solar, an open cycle gas turbine is used to balance load for a max of 50 days per year.", elem_classes="text-lg")
-    gr.Markdown("- The solar + wind + gas hybrid system shown is that optimises the ratio of solar to wind to minimise the levelised cost of energy.", elem_classes="text-lg")
+    gr.Markdown("- Analyse wind + gas, solar + gas, hybrid (wind + solar + gas), or gas (combined cycle) means of powering datacenters.", elem_classes="text-lg")
+    gr.Markdown("- For wind/solar/hybrid, an open cycle gas turbine is used to balance load for a max of 50 days per year.", elem_classes="text-lg")
+    gr.Markdown("- The hybrid (solar + wind + gas) hybrid system shown is that optimises the ratio of solar to wind to minimise the levelised cost of energy.", elem_classes="text-lg")
     gr.Markdown("- Geo coordinates are used to calculate local wind speeds and solar irradiation on an hourly basis across the 2022 calendar year.", elem_classes="text-lg")
     gr.Markdown("- All $/kW costs are on an installed basis.", elem_classes="text-lg")
 
