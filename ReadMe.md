@@ -22,6 +22,7 @@ uv pip install -r requirements.txt
 ```
 then
 ```
+cd app
 python app.py
 ```
 ## Acknowledgements
@@ -52,13 +53,13 @@ To manage the Gradio app as a systemd service, follow these steps:
 4. Add the following content to the file:
    ```ini
    [Unit]
-   Description=Eire Data Gradio App
+   Description=Gigawatt Data Center Gradio App
    After=network.target
 
    [Service]
    User=gigawatt-datacenter
    WorkingDirectory=/var/www/gigawatt-datacenter
-   ExecStart=/var/www/gigawatt-datacenter/dataEnv/bin/python /var/www/gigawatt-datacenter/app/app.py
+   ExecStart=/var/www/gigawatt-datacenter/.venv/bin/python /var/www/gigawatt-datacenter/app/app.py
    Restart=always
    RestartSec=10
 
@@ -172,5 +173,74 @@ To check the application logs for errors:
   ```
   sudo systemctl restart nginx
   ```
+
+### Setting Up Nginx
+
+1. Install Nginx if not already installed:
+   ```
+   sudo apt update
+   sudo apt install nginx
+   ```
+
+2. Create a new Nginx server block configuration:
+   ```
+   sudo nano /etc/nginx/sites-available/gigawatt-datacenter
+   ```
+
+3. Add the following content to the file:
+   ```nginx
+   server {
+       listen 80;
+       server_name gigawattdatacenter.com www.gigawattdatacenter.com;
+
+       location / {
+           proxy_pass http://localhost:7860;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   ```
+
+4. Create a symbolic link to enable the site:
+   ```
+   sudo ln -s /etc/nginx/sites-available/gigawatt-datacenter /etc/nginx/sites-enabled/
+   ```
+
+5. Test Nginx configuration:
+   ```
+   sudo nginx -t
+   ```
+
+6. If the test is successful, restart Nginx:
+   ```
+   sudo systemctl restart nginx
+   ```
+
+### Reviewing Nginx Settings
+
+To review your Nginx settings for gigawattdatacenter.com:
+
+1. View the Nginx configuration file:
+   ```
+   sudo cat /etc/nginx/sites-available/gigawatt-datacenter
+   ```
+
+2. Check if the symbolic link exists:
+   ```
+   ls -l /etc/nginx/sites-enabled/gigawatt-datacenter
+   ```
+
+3. Verify Nginx is listening on port 80:
+   ```
+   sudo netstat -tlnp | grep nginx
+   ```
+
+4. Check Nginx error logs for any issues:
+   ```
+   sudo tail -f /var/log/nginx/error.log
+   ```
 
 Remember to always check the logs after restarting the server to ensure everything is running correctly.
