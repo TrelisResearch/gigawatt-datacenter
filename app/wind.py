@@ -151,7 +151,10 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
             ]
         },
         "total_capex": system_cost / 1e6,  # Convert to millions
-        "wacc": wacc
+        "wacc": wacc,
+        "number_of_turbines": required_turbines,  # Add this line
+        "turbine_type": turbine.turbine_type,  # Add this line
+        "turbine_nominal_power": turbine.nominal_power / 1e3  # Add this line, convert to MW
     }
 
     return results

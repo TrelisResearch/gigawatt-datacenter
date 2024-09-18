@@ -135,7 +135,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Wind results
     wind_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Wind Fraction of Energy Consumed', 'Gas Fraction of Energy Consumed', 'Wind Capacity Factor', 
-                'Wind Curtailment', 'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+                'Wind Curtailment', 'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC',
+                'Number of Turbines', 'Turbine Type', 'Turbine Nominal Power'],  # Add these lines
         'Value': [f"${wind_results['lcoe']:.4f}/kWh", 
                 f"{wind_results['wind_fraction']:.2%}",
                 f"{wind_results['gas_fraction']:.2%}",
@@ -145,7 +146,10 @@ def analyze_energy_systems(lat, lon, demand_gw,
                 f"{wind_results['gas_capacity_gw']:.2f} GW",
                 f"${int(wind_results['capex_per_kw']):,.0f} $/kW",
                 f"${int(wind_results['total_capex']):,.0f} million",
-                f"{wind_results['wacc']:.1%}"]
+                f"{wind_results['wacc']:.1%}",
+                f"{wind_results['number_of_turbines']:,}",  # Add this line
+                f"{wind_results['turbine_type']}",  # Add this line
+                f"{wind_results['turbine_nominal_power']:.2f} MW"]  # Add this line
     })
     
     # Wind energy generated plot
