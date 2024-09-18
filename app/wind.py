@@ -224,9 +224,56 @@ def plot_capex_breakdown(wind_capacity, battery_capacity, gas_capacity, location
     plt.show()
 
 if __name__ == "__main__":
-    latitude = 53
-    longitude = -8
+    # Coordinates for a location near Dingle, County Kerry
+    latitude = 52.1408
+    longitude = -10.2686
     daily_usage = 24000000  # Daily usage in kWh (24 GWh)
     demand_in_kw = 1000000  # Demand in kW (1 GW)
     
-    analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw)
+    # Increase overall font size
+    plt.rcParams.update({'font.size': 18})
+    
+    # Fetch weather data and calculate daily energy output
+    weather = get_processed_weather_data(latitude, longitude, "2022-01-01", "2022-12-31")
+    mc = ModelChain(WIND_TURBINE).run_model(weather)
+    daily_generated = mc.power_output.resample('D').sum() / 1e6  # Convert to MWh
+    
+    # Normalize the data by dividing by the turbine's rated power (in MW)
+    turbine_rated_power_mw = WIND_TURBINE.nominal_power / 1e6
+    daily_generated_normalized = daily_generated / turbine_rated_power_mw
+    
+    # Plot a) Daily wind energy generated (unsorted)
+    plt.figure(figsize=(16, 9))
+    plt.bar(range(1, 366), daily_generated_normalized)
+    plt.title("Daily Wind Energy Generated per kW Rated near Dingle (Unsorted)", fontsize=24)
+    plt.xlabel("Day of Year", fontsize=20)
+    plt.ylabel("Energy Generated (kWh) per kW Rated", fontsize=20)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.grid(True, axis='y')
+    plt.tight_layout()
+    plt.show()
+    
+    # Plot b) Sorted daily wind energy generated
+    plt.figure(figsize=(16, 9))
+    plt.bar(range(1, 366), sorted(daily_generated_normalized))
+    plt.title("Sorted Daily Wind Energy Generated per kW Rated near Dingle", fontsize=24)
+    plt.xlabel("Day (sorted by generation)", fontsize=20)
+    plt.ylabel("Energy Generated (kWh) per kW Rated", fontsize=20)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.grid(True, axis='y')
+    plt.tight_layout()
+    plt.show()
+    
+    # Run the analysis
+    results = analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw)
+    
+    # Print some key results
+    print(f"\nKey Results for Dingle Peninsula, County Kerry:")
+    print(f"Latitude: {latitude}, Longitude: {longitude}")
+    print(f"LCOE: ${results['lcoe']:.4f}/kWh")
+    print(f"Wind Capacity Factor: {results['wind_capacity_factor']:.2%}")
+    print(f"Wind Curtailment: {results['wind_curtailment']:.2%}")
+    print(f"Number of Turbines: {results['number_of_turbines']}")
+    print(f"Turbine Rated Power: {turbine_rated_power_mw:.2f} MW")

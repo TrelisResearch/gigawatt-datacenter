@@ -3,6 +3,7 @@ from runtime_config import config
 from pvlib import pvsystem, modelchain, location, iotools
 import numpy as np
 from utils import get_coordinates, calculate_wacc, calculate_lcoe, calculate_capex_per_kw
+import matplotlib.pyplot as plt
 
 WACC = calculate_wacc()
 
@@ -60,7 +61,7 @@ def calculate_daily_generated(ac):
     if daily_energy_sum > 0:
         daily_generated.append(daily_energy_sum)
 
-    return sorted(daily_generated)
+    return daily_generated
 
 def calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day):
     required_solar_array = round(daily_usage / (daily_generated[cutoff_day]))
@@ -93,7 +94,8 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     print(f"Analyzing solar system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     ac, average_annual_insolation = simulate_solar_generated(latitude, longitude)
-    daily_generated = calculate_daily_generated(ac)
+    daily_generated_unsorted = calculate_daily_generated(ac)
+    daily_generated = sorted(daily_generated_unsorted)
 
     required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day)
 
@@ -162,13 +164,43 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         "total_capex": system_cost / 1e6,
         "wacc": wacc,
         "solar_curtailment": solar_curtailment,
-        "average_annual_insolation": average_annual_insolation
+        "average_annual_insolation": average_annual_insolation,
+        "daily_generated_unsorted": daily_generated_unsorted,
+        "daily_generated_sorted": daily_generated,
+        "required_solar_array": required_solar_array
     }
 
 if __name__ == "__main__":
-    latitude = 53
-    longitude = -8
+    # latitude = 53
+    # longitude = -8
+    # Coordinates for Tucson, Arizona
+    latitude = 32.2226
+    longitude = -110.9747
+
     demand_in_kw = 1000000  # 1 GW
     daily_usage = 24000000  # 24 GWh
     
-    analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage)
+    result = analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage)
+    
+    # Normalize the data by dividing by the required solar array capacity
+    daily_generated_unsorted = np.array(result['daily_generated_unsorted'])
+    daily_generated_sorted = np.array(result['daily_generated_sorted'])
+    
+    # Create separate plots for unsorted and sorted data
+    fig1, ax1 = plt.subplots(figsize=(12, 8))
+    ax1.bar(range(1, 366), daily_generated_unsorted)
+    ax1.set_title('Daily Solar Energy Generated (Unsorted)', fontsize=18)
+    ax1.set_xlabel('Day of Year', fontsize=18)
+    ax1.set_ylabel('Energy (kWh) per kW rated', fontsize=18)
+    ax1.tick_params(axis='both', which='major', labelsize=14)
+    plt.tight_layout()
+    plt.show()
+
+    fig2, ax2 = plt.subplots(figsize=(12, 8))
+    ax2.bar(range(1, 366), daily_generated_sorted)
+    ax2.set_title('Daily Solar Energy Generated (Sorted)', fontsize=18)
+    ax2.set_xlabel('Day (sorted by generation)', fontsize=18)
+    ax2.set_ylabel('Energy (kWh) per kW rated', fontsize=18)
+    ax2.tick_params(axis='both', which='major', labelsize=14)
+    plt.tight_layout()
+    plt.show()

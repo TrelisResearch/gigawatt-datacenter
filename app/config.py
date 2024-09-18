@@ -1,5 +1,5 @@
 # Cost parameters
-SOLAR_COST_PER_KW = 350  # $/kW
+SOLAR_COST_PER_KW = 550  # $/kW
 WIND_COST_PER_KW = 1300  # $/kW
 BATTERY_COST_PER_KWH = 250  # $/kWh
 
@@ -13,7 +13,7 @@ NG_PRICE_PER_MMBTU = 12  # $/MMBtu (typical European price)
 NG_PRICE_PER_KWH = NG_PRICE_PER_MMBTU / 293.07  # Convert $/MMBtu to $/kWh
 
 # Open Cycle Gas Turbine (OCGT) parameters
-OCGT_EFFICIENCY = 0.35  # 35% efficiency for open cycle gas turbine
+OCGT_EFFICIENCY = 0.30  # 35% efficiency for open cycle gas turbine
 OCGT_CAPEX_PER_KW = 800  # $/kW
 OCGT_OPEX_PER_KWH = 0.02  # $/kWh for operation and maintenance
 
