@@ -9,7 +9,7 @@ SOLAR_PANEL_DENSITY = 0.4 # m2 of area per m2 of panels
 SOLAR_IRRADIANCE = 1000  # W/m² (standard solar irradiance)
 
 # Natural Gas parameters
-NG_PRICE_PER_MMBTU = 20  # $/MMBtu (typical European price)
+NG_PRICE_PER_MMBTU = 12  # $/MMBtu (typical European price)
 NG_PRICE_PER_KWH = NG_PRICE_PER_MMBTU / 293.07  # Convert $/MMBtu to $/kWh
 
 # Open Cycle Gas Turbine (OCGT) parameters
@@ -31,7 +31,7 @@ SOLAR_BATTERY_STORAGE_HOURS = 24  # Hours of battery storage for pure solar syst
 WIND_BATTERY_STORAGE_HOURS = 12   # Hours of battery storage for pure wind system
 
 # System design parameters
-CUTOFF_DAY = 200  # Number of days the system should be able to handle without gas support
+CUTOFF_DAY = 50  # Number of days the system should be able to handle without gas support
 
 # Hybrid system threshold
 HYBRID_LCOE_THRESHOLD = 0  # 0% LCOE improvement threshold for hybriding
