@@ -115,7 +115,7 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
             solar_capacity * config.SOLAR_COST_PER_KW +
             wind_capacity * config.WIND_COST_PER_KW +
             battery_capacity * config.BATTERY_COST_PER_KWH +
-            demand_in_kw * config.OCGT_CAPEX_PER_KW
+            (0 if cutoff_day == 0 else demand_in_kw * config.OCGT_CAPEX_PER_KW)
         )
 
         lcoe = calculate_lcoe(system_cost, annual_demand, gas_energy)
@@ -183,14 +183,17 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
         energy_generated_data[key] = energy_generated_data[key][sort_indices]
 
     capex_breakdown_data = {
-        'components': ['Solar Panels', 'Wind Turbines', 'Battery Storage', 'Gas'],
+        'components': ['Solar Panels', 'Wind Turbines', 'Battery Storage'],
         'values': [
             best_result["solar_capacity"] * config.SOLAR_COST_PER_KW / 1e6,
             best_result["wind_capacity"] * config.WIND_COST_PER_KW / 1e6,
             best_result["battery_capacity"] * config.BATTERY_COST_PER_KWH / 1e6,
-            demand_in_kw * config.OCGT_CAPEX_PER_KW / 1e6
         ]
     }
+
+    if cutoff_day > 0:
+        capex_breakdown_data['components'].append('Gas')
+        capex_breakdown_data['values'].append(demand_in_kw * config.OCGT_CAPEX_PER_KW / 1e6)
 
     total_capex = sum(capex_breakdown_data['values'])
 

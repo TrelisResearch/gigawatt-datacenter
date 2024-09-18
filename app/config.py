@@ -31,7 +31,7 @@ SOLAR_BATTERY_STORAGE_HOURS = 24  # Hours of battery storage for pure solar syst
 WIND_BATTERY_STORAGE_HOURS = 12   # Hours of battery storage for pure wind system
 
 # System design parameters
-CUTOFF_DAY = 50  # Number of days the system should be able to handle without gas support
+CUTOFF_DAY = 0  # Number of days the system should be able to handle without gas support
 
 # Hybrid system threshold
 HYBRID_LCOE_THRESHOLD = 0  # 0% LCOE improvement threshold for hybriding

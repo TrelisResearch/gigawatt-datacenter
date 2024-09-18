@@ -46,11 +46,10 @@ def fetch_open_meteo_data(latitude, longitude, start_date, end_date):
     
     return df
 
-# Calculate system costs
-def calculate_system_cost(wind_capacity, battery_capacity=0, gas_capacity=0):
+def calculate_system_cost(wind_capacity, battery_capacity=0, gas_capacity=0, cutoff_day=None):
     wind_cost = wind_capacity * config.WIND_COST_PER_KW
     battery_cost = battery_capacity * config.BATTERY_COST_PER_KWH
-    gas_cost = gas_capacity * config.OCGT_CAPEX_PER_KW
+    gas_cost = 0 if cutoff_day == 0 else gas_capacity * config.OCGT_CAPEX_PER_KW
     return wind_cost + battery_cost + gas_cost
 
 def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_day=None, wacc=WACC):
@@ -129,7 +128,7 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     wind_capacity = required_turbines * WIND_TURBINE.nominal_power / 1e3  # in kW
     battery_capacity = demand_in_kw * config.WIND_BATTERY_STORAGE_HOURS  # Battery storage in kWh
     gas_capacity = demand_in_kw
-    system_cost = calculate_system_cost(wind_capacity, battery_capacity, gas_capacity)
+    system_cost = calculate_system_cost(wind_capacity, battery_capacity, gas_capacity, cutoff_day)
 
     # Calculate LCOE
     system_lcoe = calculate_lcoe(system_cost, annual_demand, gas_input)
@@ -147,6 +146,18 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
     print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
     print(f"Fraction of energy from wind: {1 - gas_fraction:.2%}")
     
+    capex_breakdown_data = {
+        'components': ['Wind Turbines', 'Battery Storage'],
+        'values': [
+            wind_capacity * config.WIND_COST_PER_KW / 1e6,
+            battery_capacity * config.BATTERY_COST_PER_KWH / 1e6,
+        ]
+    }
+
+    if cutoff_day > 0:
+        capex_breakdown_data['components'].append('Gas')
+        capex_breakdown_data['values'].append(gas_capacity * config.OCGT_CAPEX_PER_KW / 1e6)
+
     results = {
         "lcoe": system_lcoe,
         "wind_fraction": 1 - gas_fraction,
@@ -160,14 +171,7 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
             'wind_generated': sorted_daily_generated * required_turbines * 1000,
             'gas_generated': np.maximum(daily_usage - sorted_daily_generated * required_turbines * 1000, 0)
         },
-        "capex_breakdown_data": {
-            'components': ['Wind Turbines', 'Battery Storage', 'Gas'],
-            'values': [
-                wind_capacity * config.WIND_COST_PER_KW / 1e6,  # Convert to millions
-                battery_capacity * config.BATTERY_COST_PER_KWH / 1e6,  # Convert to millions
-                gas_capacity * config.OCGT_CAPEX_PER_KW / 1e6  # Convert to millions
-            ]
-        },
+        "capex_breakdown_data": capex_breakdown_data,
         "total_capex": system_cost / 1e6,  # Convert to millions
         "wacc": wacc,
         "number_of_turbines": required_turbines,

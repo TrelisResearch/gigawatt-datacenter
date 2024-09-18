@@ -74,10 +74,10 @@ def calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cu
 
     return required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction
 
-def calculate_system_cost(solar_capacity, battery_capacity=0, gas_capacity=0):
+def calculate_system_cost(solar_capacity, battery_capacity=0, gas_capacity=0, cutoff_day=None):
     solar_cost = solar_capacity * config.SOLAR_COST_PER_KW
     battery_cost = battery_capacity * config.BATTERY_COST_PER_KWH
-    gas_cost = gas_capacity * config.OCGT_CAPEX_PER_KW
+    gas_cost = 0 if cutoff_day == 0 else gas_capacity * config.OCGT_CAPEX_PER_KW
     return solar_cost + battery_cost + gas_cost
 
 def calculate_solar_area(capacity_kw):
@@ -100,7 +100,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
     required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day)
 
     battery_capacity = demand_in_kw * config.SOLAR_BATTERY_STORAGE_HOURS
-    system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw)
+    system_cost = calculate_system_cost(required_solar_array, battery_capacity, demand_in_kw, cutoff_day)
 
     annual_energy_consumed = 365 * daily_usage
 
