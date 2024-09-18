@@ -38,7 +38,10 @@ def simulate_solar_generated(latitude, longitude):
     weather = iotools.get_pvgis_tmy(latitude, longitude)[0]
     mc.run_model(weather)
 
-    return mc.results.ac
+    # Calculate average annual insolation (GHI)
+    average_annual_insolation = weather['ghi'].mean()
+
+    return mc.results.ac, average_annual_insolation
 
 def calculate_daily_generated(ac):
     daily_energy_sum = 0
@@ -89,7 +92,7 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
 
     print(f"Analyzing solar system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
-    ac = simulate_solar_generated(latitude, longitude)
+    ac, average_annual_insolation = simulate_solar_generated(latitude, longitude)
     daily_generated = calculate_daily_generated(ac)
 
     required_solar_array, gas_energy_generated, solar_energy_generated, solar_energy_consumed, gas_energy_consumed, gas_fraction = calculate_system_requirements(daily_generated, daily_usage, demand_in_kw, cutoff_day)
@@ -117,6 +120,8 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
 
     print(f"\nGas Supported System (with {config.SOLAR_BATTERY_STORAGE_HOURS}h battery storage):")
     print(f"Solar Capacity: {required_solar_array/1e6} GW")
+    print(f"Solar Energy Generated: {solar_energy_generated/1e6} GWh")
+    print(f"Solar Energy Consumed: {solar_energy_consumed/1e6} GWh")
     print(f"Total cost: ${system_cost:,.0f}")
     print(f"LCOE: ${system_lcoe:.4f}/kWh")
     print(f"Capex per kW: ${system_capex_per_kw:.2f}/kW")
@@ -140,6 +145,8 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         ]
     }
 
+    print(f"Average Annual Insolation: {average_annual_insolation:.2f} W/m²")
+
     return {
         "lcoe": system_lcoe,
         "solar_fraction": solar_energy_consumed / annual_energy_consumed,
@@ -154,7 +161,8 @@ def analyze_solar_system(latitude, longitude, demand_in_kw, daily_usage, cutoff_
         "capex_breakdown_data": capex_breakdown_data,
         "total_capex": system_cost / 1e6,
         "wacc": wacc,
-        "solar_curtailment": solar_curtailment
+        "solar_curtailment": solar_curtailment,
+        "average_annual_insolation": average_annual_insolation
     }
 
 if __name__ == "__main__":

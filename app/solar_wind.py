@@ -47,7 +47,7 @@ def analyze_hybrid_system(latitude, longitude, demand_in_kw, daily_consumption, 
     print(f"Analyzing hybrid system for coordinates: Latitude {latitude}, Longitude {longitude}")
 
     # Simulate solar and wind output
-    solar_generated = simulate_solar_generated(latitude, longitude)
+    solar_generated, average_annual_insolation = simulate_solar_generated(latitude, longitude)
     solar_daily = pd.Series(calculate_solar_daily_generated(solar_generated))
 
     weather_data = fetch_open_meteo_data(latitude, longitude, "2022-01-01", "2022-12-31")

@@ -79,8 +79,9 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
         ('roughness_length', 0): weather[('roughness_length', 0)]
     })
 
-    # Print average wind speed
-    print(f"Average wind speed for coordinates ({latitude}, {longitude}): {weather_selected[('wind_speed', WIND_TURBINE.hub_height)].mean():.2f} m/s")
+    # Calculate average wind speed
+    average_wind_speed = weather_selected[('wind_speed', WIND_TURBINE.hub_height)].mean()
+    print(f"Average wind speed at {WIND_TURBINE.hub_height}m for coordinates ({latitude}, {longitude}): {average_wind_speed:.2f} m/s")
 
     # ModelChain setup and run
     mc = ModelChain(WIND_TURBINE).run_model(weather_selected)
@@ -169,9 +170,10 @@ def analyze_wind_energy(latitude, longitude, daily_usage, demand_in_kw, cutoff_d
         },
         "total_capex": system_cost / 1e6,  # Convert to millions
         "wacc": wacc,
-        "number_of_turbines": required_turbines,  # Add this line
-        "turbine_type": WIND_TURBINE.turbine_type,  # Add this line
-        "turbine_nominal_power": WIND_TURBINE.nominal_power / 1e3  # Add this line, convert to MW
+        "number_of_turbines": required_turbines,
+        "turbine_type": WIND_TURBINE.turbine_type,
+        "turbine_nominal_power": WIND_TURBINE.nominal_power / 1e3,
+        "average_wind_speed": average_wind_speed
     }
 
     return results

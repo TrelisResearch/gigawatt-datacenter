@@ -75,7 +75,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
     # Solar results
     solar_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Solar Fraction of Energy Consumed', 'Gas Fraction of Energy Consumed', 'Solar Capacity Factor', 
-                   'Solar Curtailment', 'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC'],
+                   'Solar Curtailment', 'Solar Area', 'Rated Solar Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC',
+                   'Average Annual Insolation'],  # Add this line
         'Value': [f"${solar_results['lcoe']:.4f}/kWh", 
                   f"{solar_results['solar_fraction']:.2%}",
                   f"{solar_results['gas_fraction']:.2%}",
@@ -86,7 +87,8 @@ def analyze_energy_systems(lat, lon, demand_gw,
                   f"{solar_results['gas_capacity_gw']:.2f} GW",
                   f"${int(solar_results['capex_per_kw']):,.0f} $/kW",
                   f"${solar_results['total_capex']:,.0f} million",
-                  f"{solar_results['wacc']:.1%}"]
+                  f"{solar_results['wacc']:.1%}",
+                  f"{solar_results['average_annual_insolation']:.2f} W/m²"]  # Add this line
     })
     
     # Update plot styling
@@ -137,7 +139,7 @@ def analyze_energy_systems(lat, lon, demand_gw,
     wind_results_df = pd.DataFrame({
         'Metric': ['LCOE', 'Wind Fraction of Energy Consumed', 'Gas Fraction of Energy Consumed', 'Wind Capacity Factor', 
                 'Wind Curtailment', 'Rated Wind Capacity', 'Rated Gas Capacity', 'Capex per kW', 'Total Capex', 'WACC',
-                'Number of Turbines', 'Turbine Type', 'Turbine Nominal Power'],  # Add these lines
+                'Number of Turbines', 'Turbine Type', 'Turbine Nominal Power', 'Average Wind Speed'],  # Add this line
         'Value': [f"${wind_results['lcoe']:.4f}/kWh", 
                 f"{wind_results['wind_fraction']:.2%}",
                 f"{wind_results['gas_fraction']:.2%}",
@@ -148,9 +150,10 @@ def analyze_energy_systems(lat, lon, demand_gw,
                 f"${int(wind_results['capex_per_kw']):,.0f} $/kW",
                 f"${int(wind_results['total_capex']):,.0f} million",
                 f"{wind_results['wacc']:.1%}",
-                f"{wind_results['number_of_turbines']:,}",  # Add this line
-                f"{wind_results['turbine_type']}",  # Add this line
-                f"{wind_results['turbine_nominal_power']:.2f} MW"]  # Add this line
+                f"{wind_results['number_of_turbines']:,}",
+                f"{wind_results['turbine_type']}",
+                f"{wind_results['turbine_nominal_power']:.2f} MW",
+                f"{wind_results['average_wind_speed']:.2f} m/s"]  # Add this line
     })
     
     # Wind energy generated plot
@@ -393,11 +396,11 @@ with gr.Blocks(theme=gr.themes.Default()) as iface:
                 solar_cost = gr.Slider(minimum=100, maximum=1000, value=config.SOLAR_COST_PER_KW, label="Solar Cost ($/kW)", info="Cost per kW of solar installation")
                 solar_efficiency = gr.Slider(minimum=0.1, maximum=0.3, value=config.SOLAR_PANEL_EFFICIENCY, label="Solar Panel Efficiency", info="Efficiency of solar panels")
                 solar_density = gr.Slider(minimum=0.2, maximum=0.6, value=config.SOLAR_PANEL_DENSITY, label="Solar Panel Density", info="m² of panel area per m² of land")
-                solar_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.SOLAR_BATTERY_STORAGE_HOURS, label="Solar Battery Storage (hours)", info="Hours of battery storage for solar system")
+                solar_battery_hours = gr.Slider(minimum=0, maximum=48, value=config.SOLAR_BATTERY_STORAGE_HOURS, label="Solar Battery Storage (hours)", info="Hours of battery storage for solar system")
                 
                 gr.Markdown("### Wind Parameters")
                 wind_cost = gr.Slider(minimum=500, maximum=2000, value=config.WIND_COST_PER_KW, label="Wind Cost ($/kW)", info="Cost per kW of wind installation")
-                wind_battery_hours = gr.Slider(minimum=6, maximum=48, value=config.WIND_BATTERY_STORAGE_HOURS, label="Wind Battery Storage (hours)", info="Hours of battery storage for wind system")
+                wind_battery_hours = gr.Slider(minimum=0, maximum=48, value=config.WIND_BATTERY_STORAGE_HOURS, label="Wind Battery Storage (hours)", info="Hours of battery storage for wind system")
 
                 gr.Markdown("### Gas Parameters")
                 ng_price = gr.Slider(minimum=5, maximum=50, value=config.NG_PRICE_PER_MMBTU, label="Natural Gas Price ($/MMBtu)", info="Price of natural gas")
